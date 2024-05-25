@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package auth;
+
+message None {}
+
+message AuthRequest {
+    string login = 1;
+    string password = 2;
+    string ip = 3;
+}
+
+message IPRequest {
+    string ip = 1;
+}
+
+message AuthResponse {
+    bool ok = 1;
+}
+
+message BucketRequest {
+    string login = 1;
+    string password = 2;
+    string ip = 3;
+}
+
+message BucketCountsResponse {
+    uint32 login = 1;
+    uint32 password = 2;
+    uint32 ip = 3;
+}
+
+service Auth {
+    // rpc AddInBlackList (IPRequest)      returns (None) {};
+    // rpc AddInWhiteList (IPRequest)      returns (None) {};
+    // rpc DeleteFromBlackList (IPRequest) returns (None) {};
+    // rpc DeleteFromWhiteList (IPRequest) returns (None) {};
+    // rpc ClearBucket(BucketRequest)      returns (None) {};
+    rpc Auth(AuthRequest)               returns (AuthResponse) {};
+
+    // // For integration tests when need clean lists before run tests
+    // rpc ClearBlackList(None)                returns (None) {};
+    // rpc ClearWhiteList(None)                returns (None) {};
+
+    // // For integration tests get all counts of all type of buckets
+    // rpc CountBuckets(None)               returns (BucketCountsResponse) {};
+}
+
+service Admin {}
