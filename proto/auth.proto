@@ -10,25 +10,25 @@ message AuthRequest {
     string ip = 3;
 }
 
-message IPRequest {
-    string ip = 1;
-}
-
 message AuthResponse {
     bool ok = 1;
 }
 
-message BucketRequest {
-    string login = 1;
-    string password = 2;
-    string ip = 3;
-}
+// message IPRequest {
+//     string ip = 1;
+// }
 
-message BucketCountsResponse {
-    uint32 login = 1;
-    uint32 password = 2;
-    uint32 ip = 3;
-}
+// message BucketRequest {
+//     string login = 1;
+//     string password = 2;
+//     string ip = 3;
+// }
+
+// message BucketCountsResponse {
+//     uint32 login = 1;
+//     uint32 password = 2;
+//     uint32 ip = 3;
+// }
 
 service Auth {
     // rpc AddInBlackList (IPRequest)      returns (None) {};
@@ -46,4 +46,4 @@ service Auth {
     // rpc CountBuckets(None)               returns (BucketCountsResponse) {};
 }
 
-service Admin {}
+//service Admin {}

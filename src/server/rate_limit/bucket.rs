@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+
+use super::rate::Rate;
 use std::{
     cmp::min,
     time::{Duration, SystemTime},
@@ -5,15 +8,7 @@ use std::{
 
 // Bucket trait is abstraction that implements aglothm https://en.wikipedia.org/wiki/Token_bucket
 
-#[derive(Debug)]
-pub enum Rate {
-    PerSecond(u64),
-    PerMinute(u64),
-    PerHour(u64),
-}
-
-#[derive(Debug)]
-pub struct Bucket {
+pub(super) struct Bucket {
     // current count of tokens in bucket
     count: u64,
 
@@ -39,20 +34,15 @@ impl Bucket {
     /// # Arguments
     ///
     /// * `rate` - max count of tokens in bucket per period, for example Rate::PerMinute(10) means 10 tokens per minute
-    /// * `active_duration` - max duration from last_active to current time that could signal that bucket already is not active
-    pub fn new(rate: Rate, active_duration: Duration) -> Self {
+    pub fn new(rate: Rate) -> Self {
+        let active_duration = rate.duration() * 2;
         Self::new_bucket(SystemTime::now(), rate, active_duration)
     }
 
     // private constructor for tests
     fn new_bucket(current_time: SystemTime, rate: Rate, active_duration: Duration) -> Self {
-        let (limit, period) = match rate {
-            Rate::PerSecond(limit) => (limit, Duration::from_secs(1)),
-            Rate::PerMinute(limit) => (limit, Duration::from_secs(60)),
-            Rate::PerHour(limit) => (limit, Duration::from_secs(3600)),
-        };
-
-        let duration = Duration::from_nanos(period.as_nanos() as u64 / limit);
+        let limit = rate.limit();
+        let duration = Duration::from_nanos(rate.duration().as_nanos() as u64 / limit);
 
         Self {
             count: limit,
@@ -70,11 +60,7 @@ impl Bucket {
     ///
     /// * `true` - if packet conform
     /// * `false` - if packet not conform
-    pub fn is_conformed(&mut self) -> bool {
-        self.check_conformed(SystemTime::now())
-    }
-
-    fn check_conformed(&mut self, current_time: SystemTime) -> bool {
+    pub fn is_conformed(&mut self, current_time: SystemTime) -> bool {
         self.release_tokens(current_time);
 
         self.last_active = current_time;
@@ -96,12 +82,7 @@ impl Bucket {
     ///
     /// * `true` - if backet still active
     /// * `false` - if backet not active
-    pub fn is_active(&mut self) -> bool {
-        self.check_active(SystemTime::now())
-    }
-
-    // is_active check if backet active to this time
-    fn check_active(&mut self, current_time: SystemTime) -> bool {
+    fn is_active(&mut self, current_time: SystemTime) -> bool {
         // we must release tokens because since last IsConform could be pass enough time to full bucket
         self.release_tokens(current_time);
 
@@ -137,8 +118,10 @@ mod tests {
 
     #[test]
     fn test_first_bucket_is_conformed() {
-        let mut bucket = Bucket::new(Rate::PerMinute(10), Duration::from_secs(60));
-        assert!(bucket.is_conformed());
+        let current_time = SystemTime::now();
+        let mut bucket =
+            Bucket::new_bucket(current_time, Rate::PerMinute(10), Duration::from_secs(60));
+        assert!(bucket.is_conformed(current_time));
     }
 
     #[test]
@@ -147,12 +130,12 @@ mod tests {
         let mut bucket =
             Bucket::new_bucket(current_time, Rate::PerMinute(5), Duration::from_secs(60));
 
-        assert!(bucket.check_conformed(current_time));
-        assert!(bucket.check_conformed(current_time + Duration::from_millis(50)));
-        assert!(bucket.check_conformed(current_time + Duration::from_millis(250)));
-        assert!(bucket.check_conformed(current_time + Duration::from_millis(1000)));
-        assert!(bucket.check_conformed(current_time + Duration::from_millis(2500)));
-        assert!(!bucket.check_conformed(current_time + Duration::from_millis(10000)));
+        assert!(bucket.is_conformed(current_time));
+        assert!(bucket.is_conformed(current_time + Duration::from_millis(50)));
+        assert!(bucket.is_conformed(current_time + Duration::from_millis(250)));
+        assert!(bucket.is_conformed(current_time + Duration::from_millis(1000)));
+        assert!(bucket.is_conformed(current_time + Duration::from_millis(2500)));
+        assert!(!bucket.is_conformed(current_time + Duration::from_millis(10000)));
     }
 
     #[test]
@@ -164,13 +147,13 @@ mod tests {
             Bucket::new_bucket(current_time, Rate::PerMinute(n), Duration::from_secs(60));
 
         for _ in 0..n {
-            assert!(bucket.check_conformed(current_time));
+            assert!(bucket.is_conformed(current_time));
         }
 
         let timeout_secs = Duration::from_secs(6); // 6 sec is enough timeout for current bucket release one token
         let next_check_time = current_time + timeout_secs;
 
-        assert!(bucket.check_conformed(next_check_time));
+        assert!(bucket.is_conformed(next_check_time));
     }
 
     #[test]
@@ -187,7 +170,7 @@ mod tests {
         let mut time = current_time;
         for _ in 0..n {
             time += Duration::from_secs(60);
-            assert!(bucket.check_conformed(time));
+            assert!(bucket.is_conformed(time));
 
             assert_eq!(
                 n - 1,
@@ -201,15 +184,15 @@ mod tests {
     fn test_is_inactive_when_is_conformed_not_called() {
         let current_time = SystemTime::now();
         let active_duration = Duration::from_secs(60);
-        let mut bucket = Bucket::new(Rate::PerMinute(10), active_duration);
+        let mut bucket = Bucket::new_bucket(current_time, Rate::PerMinute(10), active_duration);
 
         assert!(
-            bucket.is_active(),
+            bucket.is_active(current_time),
             "bucket must be active right away after construction"
         );
 
         assert!(
-            !bucket.check_active(current_time + active_duration + Duration::from_millis(1)),
+            !bucket.is_active(current_time + active_duration + Duration::from_millis(1)),
             "bucket must be not active after wait timeout after constructor"
         );
     }
@@ -218,13 +201,13 @@ mod tests {
     fn test_is_active_right_after_is_conformed_called() {
         let current_time = SystemTime::now();
         let active_duration = Duration::from_secs(60);
-        let mut bucket = Bucket::new(Rate::PerMinute(10), active_duration);
+        let mut bucket = Bucket::new_bucket(current_time, Rate::PerMinute(10), active_duration);
 
         let time = current_time + active_duration + Duration::from_millis(1);
-        bucket.check_conformed(time);
+        bucket.is_conformed(time);
 
         assert!(
-            bucket.check_active(time),
+            bucket.is_active(time),
             "bucket must be active right after checking for conformed"
         );
     }
@@ -234,20 +217,20 @@ mod tests {
         let current_time = SystemTime::now();
         let active_seconds_duration = 60;
         let active_duration = Duration::from_secs(active_seconds_duration);
-        let mut bucket = Bucket::new(Rate::PerMinute(10), active_duration);
+        let mut bucket = Bucket::new_bucket(current_time, Rate::PerMinute(10), active_duration);
 
         let time = current_time + active_duration;
-        bucket.check_conformed(time);
+        bucket.is_conformed(time);
 
         let time = time + Duration::from_secs(active_seconds_duration - 1);
         assert!(
-            bucket.check_active(time),
+            bucket.is_active(time),
             "bucket must be active, because active timeout is not passed"
         );
 
         let time = time + Duration::from_secs(1) + Duration::from_millis(1);
         assert!(
-            !bucket.check_active(time),
+            !bucket.is_active(time),
             "bucket must not be active, because active timeout is passed"
         );
     }
