@@ -1,5 +1,5 @@
 [package]
-name = "otus-rust-2024-project"
+name = "auth"
 version = "0.1.0"
 edition = "2021"
 

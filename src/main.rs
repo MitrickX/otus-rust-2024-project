@@ -1,3 +1,4 @@
+use auth::server::service::auth::{Auth as AuthAppService, Credentials};
 use proto::auth_server::{Auth, AuthServer};
 use std::error::Error;
 use tonic::transport::Server;
@@ -10,7 +11,9 @@ mod proto {
 }
 
 #[derive(Debug, Default)]
-struct AuthService {}
+struct AuthService {
+    auth_app_service: AuthAppService,
+}
 
 #[tonic::async_trait]
 impl Auth for AuthService {
@@ -22,8 +25,14 @@ impl Auth for AuthService {
 
         let input = request.get_ref();
 
-        let is_ok_auth =
-            input.login == "admin" && input.password == "1234" && input.ip == "127.0.0.1";
+        let is_ok_auth = self
+            .auth_app_service
+            .check(Credentials {
+                login: input.login.clone(),
+                password: input.password.clone(),
+                ip: input.ip.clone(),
+            })
+            .await;
         let response = proto::AuthResponse { ok: is_ok_auth };
 
         println!("Response: {:?}", response);
