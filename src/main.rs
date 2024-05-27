@@ -1,4 +1,5 @@
 use auth::server::service::auth::{Auth as AuthAppService, Credentials};
+use auth::server::service::config::Config;
 use proto::auth_server::{Auth, AuthServer};
 use std::error::Error;
 use tonic::transport::Server;
@@ -10,10 +11,23 @@ mod proto {
         tonic::include_file_descriptor_set!("auth_descriptor");
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct AuthService {
     auth_app_service: AuthAppService,
 }
+
+impl AuthService {
+    fn new(config_path: &str) -> Self {
+        let config = Config::parse(config_path).unwrap();
+        let service = AuthAppService::new(config);
+        Self {
+            auth_app_service: service,
+        }
+    }
+}
+
+const ADDR: &str = "[::1]:50051";
+const CONFIG_PATH: &str = "./server/config.yaml";
 
 #[tonic::async_trait]
 impl Auth for AuthService {
@@ -41,12 +55,10 @@ impl Auth for AuthService {
     }
 }
 
-const ADDR: &str = "[::1]:50051";
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let addr = ADDR.parse()?;
-    let auth = AuthService::default();
+    let auth = AuthService::new(CONFIG_PATH);
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)

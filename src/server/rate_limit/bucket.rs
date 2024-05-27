@@ -8,6 +8,7 @@ use std::{
 
 // Bucket trait is abstraction that implements aglothm https://en.wikipedia.org/wiki/Token_bucket
 
+#[derive(Debug)]
 pub(super) struct Bucket {
     // current count of tokens in bucket
     count: u64,

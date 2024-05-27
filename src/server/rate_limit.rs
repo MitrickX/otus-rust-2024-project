@@ -5,12 +5,13 @@ use self::bucket::Bucket;
 use rate::Rate;
 use std::{collections::HashMap, hash::Hash, time::SystemTime};
 
-pub struct RateLimit<K: PartialEq + Eq + Hash + Copy> {
+#[derive(Debug)]
+pub struct RateLimit<K: PartialEq + Eq + Hash + Clone> {
     rate: Rate,
     buckets: HashMap<K, Bucket>,
 }
 
-impl<K: PartialEq + Eq + Hash + Copy> RateLimit<K> {
+impl<K: PartialEq + Eq + Hash + Clone> RateLimit<K> {
     pub fn new(rate: Rate) -> Self {
         Self {
             rate,
