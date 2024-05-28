@@ -1,6 +1,6 @@
 use proto::auth_server::{Auth, AuthServer};
-use server::server::service::auth::{Auth as AuthAppService, Credentials};
-use server::server::service::config::Config;
+use server::app::service::auth::{Auth as AuthAppService, Credentials};
+use server::app::service::config::Config;
 use std::error::Error;
 use std::path::Path;
 use tonic::transport::Server;

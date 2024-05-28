@@ -1,5 +1,5 @@
-use crate::server::rate_limit::rate::Rate;
-use crate::server::rate_limit::RateLimit;
+use crate::app::rate_limit::rate::Rate;
+use crate::app::rate_limit::RateLimit;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
