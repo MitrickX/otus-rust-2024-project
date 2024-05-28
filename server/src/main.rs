@@ -1,6 +1,6 @@
-use auth::server::service::auth::{Auth as AuthAppService, Credentials};
-use auth::server::service::config::Config;
 use proto::auth_server::{Auth, AuthServer};
+use server::server::service::auth::{Auth as AuthAppService, Credentials};
+use server::server::service::config::Config;
 use std::error::Error;
 use std::path::Path;
 use tonic::transport::Server;
@@ -61,6 +61,8 @@ impl Auth for AuthService {
 async fn main() -> Result<(), Box<dyn Error>> {
     let mut path = std::env::current_dir()?;
     path.push(CONFIG_PATH);
+
+    println!("Path: {:?}", path);
 
     let addr = ADDR.parse()?;
     let auth = AuthService::new(path.as_path());
