@@ -1,6 +1,6 @@
 use crate::server::rate_limit::rate::Rate;
 use crate::server::rate_limit::RateLimit;
-use std::{collections::HashMap, hash::Hash, sync::Arc, time::SystemTime};
+use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 use super::config::Config;
@@ -20,15 +20,19 @@ pub struct Auth {
 
 impl Auth {
     pub fn new(config: Config) -> Self {
-        let rate_limit_login = Arc::new(Mutex::new(RateLimit::new(Rate::PerMinute(
-            config.limits.login,
-        ))));
-        let rate_limit_password = Arc::new(Mutex::new(RateLimit::new(Rate::PerMinute(
-            config.limits.password,
-        ))));
-        let rate_limit_ip = Arc::new(Mutex::new(RateLimit::new(Rate::PerMinute(
-            config.limits.ip,
-        ))));
+        let bucket_active_secs = Duration::from_secs(config.timeouts.bucket_active_secs);
+        let rate_limit_login = Arc::new(Mutex::new(RateLimit::new(
+            Rate::PerMinute(config.limits.login),
+            bucket_active_secs,
+        )));
+        let rate_limit_password = Arc::new(Mutex::new(RateLimit::new(
+            Rate::PerMinute(config.limits.password),
+            bucket_active_secs,
+        )));
+        let rate_limit_ip = Arc::new(Mutex::new(RateLimit::new(
+            Rate::PerMinute(config.limits.ip),
+            bucket_active_secs,
+        )));
         Self {
             rate_limit_login,
             rate_limit_password,

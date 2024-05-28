@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_yml;
+use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Limits {
@@ -10,17 +11,17 @@ pub struct Limits {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Timeouts {
-    bucket_active_secs: u64,
+    pub bucket_active_secs: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub limits: Limits,
-    timeouts: Timeouts,
+    pub timeouts: Timeouts,
 }
 
 impl Config {
-    pub fn parse(file_path: &str) -> Result<Self, Box<serde_yml::Error>> {
+    pub fn parse(file_path: &Path) -> Result<Self, Box<serde_yml::Error>> {
         let content = std::fs::read_to_string(file_path).unwrap();
         let config: Config = serde_yml::from_str(&content)?;
         Ok(config)

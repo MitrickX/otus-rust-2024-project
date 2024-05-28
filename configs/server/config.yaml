@@ -5,7 +5,7 @@ limits:
   ip: 1000
 
 timeouts:
-  bucket_active: "2m"
+  bucket_active_secs: 180
 
 # logger:
 #   level: "debug"

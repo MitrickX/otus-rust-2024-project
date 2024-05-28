@@ -35,8 +35,7 @@ impl Bucket {
     /// # Arguments
     ///
     /// * `rate` - max count of tokens in bucket per period, for example Rate::PerMinute(10) means 10 tokens per minute
-    pub fn new(rate: Rate) -> Self {
-        let active_duration = rate.duration() * 2;
+    pub fn new(rate: Rate, active_duration: Duration) -> Self {
         Self::new_bucket(SystemTime::now(), rate, active_duration)
     }
 
@@ -83,7 +82,7 @@ impl Bucket {
     ///
     /// * `true` - if backet still active
     /// * `false` - if backet not active
-    fn is_active(&mut self, current_time: SystemTime) -> bool {
+    pub fn is_active(&mut self, current_time: SystemTime) -> bool {
         // we must release tokens because since last IsConform could be pass enough time to full bucket
         self.release_tokens(current_time);
 
