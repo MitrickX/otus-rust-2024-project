@@ -1,8 +1,10 @@
 use proto::auth_server::{Auth, AuthServer};
-use server::app::service::auth::{Auth as AuthAppService, Credentials};
-use server::app::service::config::Config;
+use server::app::{
+    config::Config,
+    migrations::run_app_migrations,
+    service::auth::{Auth as AuthAppService, Credentials},
+};
 use std::error::Error;
-use std::path::Path;
 use tonic::transport::Server;
 
 mod proto {
@@ -18,9 +20,7 @@ struct AuthService {
 }
 
 impl AuthService {
-    fn new(config_path: &Path) -> Self {
-        let config = Config::parse(config_path).unwrap();
-        println!("Config: {:?}", config);
+    fn new(config: &Config) -> Self {
         let service = AuthAppService::new(config);
         Self {
             auth_app_service: service,
@@ -56,7 +56,6 @@ impl Auth for AuthService {
         Ok(tonic::Response::new(response))
     }
 }
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let mut path = std::env::current_dir()?;
@@ -64,8 +63,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Path: {:?}", path);
 
+    let config = Config::parse(path.as_path()).unwrap();
+    println!("Config: {:?}", config);
+
+    run_app_migrations(&config).await;
+
     let addr = ADDR.parse()?;
-    let auth = AuthService::new(path.as_path());
+    let auth = AuthService::new(&config);
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)

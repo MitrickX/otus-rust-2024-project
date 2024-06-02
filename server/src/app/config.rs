@@ -15,9 +15,19 @@ pub struct Timeouts {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct DB {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub password: String,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub limits: Limits,
     pub timeouts: Timeouts,
+    pub db: DB,
 }
 
 impl Config {

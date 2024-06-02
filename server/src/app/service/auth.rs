@@ -3,7 +3,7 @@ use crate::app::rate_limit::RateLimit;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
-use super::config::Config;
+use crate::app::config::Config;
 
 pub struct Credentials {
     pub login: String,
@@ -19,7 +19,7 @@ pub struct Auth {
 }
 
 impl Auth {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: &Config) -> Self {
         let bucket_active_secs = Duration::from_secs(config.timeouts.bucket_active_secs);
         let rate_limit_login = Arc::new(Mutex::new(RateLimit::new(
             Rate::PerMinute(config.limits.login),
