@@ -1,20 +1,4 @@
-# limits in minutes for each login/password/ip
-limits:
-  login: 10
-  password: 100
-  ip: 1000
-
-timeouts:
-  bucket_active_secs: 180
-
 db:
-  host: 127.0.0.1
-  port: 5432
-  name: auth
-  user: otus
-  password: 1234
-
-db_test:
   host: 127.0.0.1
   port: 5432
   name: auth_test

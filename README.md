@@ -22,10 +22,16 @@ psql -U postgres
 
 create role otus with createdb login password '1234';
 create database auth with owner 'otus';
+create database auth_test with owner 'otus';
 \q
 ```
 
-5) Запустить миграции
+
+3) Запустить интеграционные тесты
+```
+cargo test --package server --test test_ip_list -- --nocapture
+```
+
 
 **Examples**
 

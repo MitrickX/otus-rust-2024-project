@@ -1,19 +1,18 @@
+use super::config::Db;
 use tokio_postgres::NoTls;
-
-use super::config::Config;
 
 pub mod embedded {
     use refinery::embed_migrations;
     embed_migrations!("./sql");
 }
 
-pub async fn run_app_migrations(config: &Config) {
+pub async fn run_app_migrations(config: &Db) {
     let (mut client, connection) = tokio_postgres::Config::new()
-        .host(&config.db.host)
-        .user(&config.db.user)
-        .dbname(&config.db.name)
-        .password(&config.db.password)
-        .port(config.db.port)
+        .host(&config.host)
+        .user(&config.user)
+        .dbname(&config.name)
+        .password(&config.password)
+        .port(config.port)
         .connect(NoTls)
         .await
         .unwrap();

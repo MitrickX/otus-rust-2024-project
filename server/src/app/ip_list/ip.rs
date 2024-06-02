@@ -2,6 +2,13 @@ use cidr::IpCidr;
 use std::net::IpAddr;
 use std::str::FromStr;
 
+fn get_octets(ip: &IpAddr) -> Vec<u8> {
+    match ip {
+        IpAddr::V4(addr) => addr.octets().to_vec(),
+        IpAddr::V6(addr) => addr.octets().to_vec(),
+    }
+}
+
 /// IP is an abstraction over one ip address (IpAddr) or range of ips (netowrk, aka IpCidr)
 #[derive(Debug, PartialEq)]
 pub struct IP {
@@ -41,6 +48,28 @@ impl IP {
             (Some(cidr), None) => cidr.contains(&ip.addr),
             _ => false,
         }
+    }
+
+    pub fn network_length(&self) -> Option<u8> {
+        self.cidr.as_ref().map(|cidr| cidr.network_length())
+    }
+
+    pub fn addr(&self) -> String {
+        self.addr.to_string()
+    }
+
+    pub fn octets(&self) -> Vec<u8> {
+        get_octets(&self.addr)
+    }
+
+    /// network mask: an pseudo address which has the first `network
+    /// length` bits set to 1 and the remaining to 0.
+    pub fn mask(&self) -> Option<Vec<u8>> {
+        self.cidr.as_ref().map(|cidr| get_octets(&cidr.mask()))
+    }
+
+    pub fn is_v6(&self) -> bool {
+        self.addr.is_ipv6()
     }
 }
 

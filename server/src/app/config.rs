@@ -15,7 +15,7 @@ pub struct Timeouts {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct DB {
+pub struct Db {
     pub host: String,
     pub port: u16,
     pub user: String,
@@ -27,7 +27,7 @@ pub struct DB {
 pub struct Config {
     pub limits: Limits,
     pub timeouts: Timeouts,
-    pub db: DB,
+    pub db: Db,
 }
 
 impl Config {

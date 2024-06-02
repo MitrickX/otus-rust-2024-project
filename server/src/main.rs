@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::parse(path.as_path()).unwrap();
     println!("Config: {:?}", config);
 
-    run_app_migrations(&config).await;
+    run_app_migrations(&config.db).await;
 
     let addr = ADDR.parse()?;
     let auth = AuthService::new(&config);
