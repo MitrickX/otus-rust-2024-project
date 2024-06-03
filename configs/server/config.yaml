@@ -14,13 +14,6 @@ db:
   user: otus
   password: 1234
 
-db_test:
-  host: 127.0.0.1
-  port: 5432
-  name: auth_test
-  user: otus
-  password: 1234
-
 # logger:
 #   level: "debug"
 #   output_paths:

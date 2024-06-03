@@ -35,7 +35,7 @@ SELECT EXISTS(
                         r#"
 SELECT EXISTS(
     SELECT 1 FROM ip_list 
-    WHERE kind = $1 AND ip = $2
+    WHERE kind = $1 AND ip = $2 AND network_length IS NULL
 )"#,
                         &[&self.kind.as_str(), &ip.octets()],
                     )
@@ -59,9 +59,7 @@ SELECT EXISTS(
                     &ip.octets(),
                     &ip.mask(),
                     &ip.addr(),
-                    &ip.network_length()
-                        .map(|mask| mask as i16)
-                        .unwrap_or_default(),
+                    &ip.network_length().map(|mask| mask as i16),
                     &ip.is_v6(),
                     &self.kind.clone(),
                 ],
@@ -71,7 +69,7 @@ SELECT EXISTS(
         Ok(())
     }
 
-    pub async fn delete(&self, ip: Ip) -> Result<()> {
+    pub async fn delete(&self, ip: &Ip) -> Result<()> {
         match ip.network_length() {
             Some(network_length) => {
                 self.client
@@ -95,10 +93,10 @@ WHERE kind = $1 AND ip = $2"#,
             }
         }
 
-        return Ok(());
+        Ok(())
     }
 
-    pub async fn is_conform(&self, ip: Ip) -> Result<bool> {
+    pub async fn is_conform(&self, ip: &Ip) -> Result<bool> {
         let row = self
             .client
             .query_one(

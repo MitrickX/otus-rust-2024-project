@@ -4,8 +4,8 @@ use std::{net::IpAddr, str::FromStr, string::ToString};
 
 fn get_octets(ip: &IpAddr) -> BitVec {
     match ip {
-        IpAddr::V4(addr) => BitVec::from_bytes(&addr.octets().to_vec()),
-        IpAddr::V6(addr) => BitVec::from_bytes(&addr.octets().to_vec()),
+        IpAddr::V4(addr) => BitVec::from_bytes(addr.octets().as_ref()),
+        IpAddr::V6(addr) => BitVec::from_bytes(addr.octets().as_ref()),
     }
 }
 
