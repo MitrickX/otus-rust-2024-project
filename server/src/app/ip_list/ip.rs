@@ -1,17 +1,17 @@
+use bit_vec::BitVec;
 use cidr::IpCidr;
-use std::net::IpAddr;
-use std::str::FromStr;
+use std::{net::IpAddr, str::FromStr, string::ToString};
 
-fn get_octets(ip: &IpAddr) -> Vec<u8> {
+fn get_octets(ip: &IpAddr) -> BitVec {
     match ip {
-        IpAddr::V4(addr) => addr.octets().to_vec(),
-        IpAddr::V6(addr) => addr.octets().to_vec(),
+        IpAddr::V4(addr) => BitVec::from_bytes(&addr.octets().to_vec()),
+        IpAddr::V6(addr) => BitVec::from_bytes(&addr.octets().to_vec()),
     }
 }
 
 /// IP is an abstraction over one ip address (IpAddr) or range of ips (netowrk, aka IpCidr)
 #[derive(Debug, PartialEq)]
-pub struct IP {
+pub struct Ip {
     addr: IpAddr,
     cidr: Option<IpCidr>,
 }
@@ -22,18 +22,18 @@ pub enum ParseError {
     CidrParseError(cidr::errors::NetworkParseError),
 }
 
-impl FromStr for IP {
+impl FromStr for Ip {
     type Err = ParseError;
-    fn from_str(s: &str) -> Result<IP, Self::Err> {
+    fn from_str(s: &str) -> Result<Ip, Self::Err> {
         match s.split_once('/') {
             Some((ip, _)) => {
                 let cidr = IpCidr::from_str(s).map_err(ParseError::CidrParseError)?;
-                Ok(IP {
+                Ok(Ip {
                     addr: IpAddr::from_str(ip).map_err(ParseError::IpAddrParseError)?,
                     cidr: Some(cidr),
                 })
             }
-            None => Ok(IP {
+            None => Ok(Ip {
                 addr: IpAddr::from_str(s).map_err(ParseError::IpAddrParseError)?,
                 cidr: None,
             }),
@@ -41,9 +41,9 @@ impl FromStr for IP {
     }
 }
 
-impl IP {
+impl Ip {
     /// Check if passed ip in in subset of ips range represented by this IP
-    pub fn contains(&self, ip: &IP) -> bool {
+    pub fn contains(&self, ip: &Ip) -> bool {
         match (self.cidr, ip.cidr) {
             (Some(cidr), None) => cidr.contains(&ip.addr),
             _ => false,
@@ -58,13 +58,13 @@ impl IP {
         self.addr.to_string()
     }
 
-    pub fn octets(&self) -> Vec<u8> {
+    pub fn octets(&self) -> BitVec {
         get_octets(&self.addr)
     }
 
     /// network mask: an pseudo address which has the first `network
     /// length` bits set to 1 and the remaining to 0.
-    pub fn mask(&self) -> Option<Vec<u8>> {
+    pub fn mask(&self) -> Option<BitVec> {
         self.cidr.as_ref().map(|cidr| get_octets(&cidr.mask()))
     }
 
@@ -80,23 +80,23 @@ mod tests {
     #[test]
     fn test_parse_ip_v4() {
         assert_eq!(
-            IP::from_str("192.168.56.0").unwrap(),
-            IP {
+            Ip::from_str("192.168.56.0").unwrap(),
+            Ip {
                 addr: IpAddr::from_str("192.168.56.0").unwrap(),
                 cidr: None
             },
         );
 
         assert_eq!(
-            IP::from_str("192.168.56.0/24").unwrap(),
-            IP {
+            Ip::from_str("192.168.56.0/24").unwrap(),
+            Ip {
                 addr: IpAddr::from_str("192.168.56.0").unwrap(),
                 cidr: Some(IpCidr::from_str("192.168.56.0/24").unwrap()),
             }
         );
 
         assert!(
-            match IP::from_str("test") {
+            match Ip::from_str("test") {
                 Err(ParseError::IpAddrParseError(_)) => true,
                 _ => false,
             },
@@ -104,7 +104,7 @@ mod tests {
         );
 
         assert!(
-            match IP::from_str("123") {
+            match Ip::from_str("123") {
                 Err(ParseError::IpAddrParseError(_)) => true,
                 _ => false,
             },
@@ -112,7 +112,7 @@ mod tests {
         );
 
         assert!(
-            match IP::from_str("192.168.56.0/test") {
+            match Ip::from_str("192.168.56.0/test") {
                 Err(ParseError::CidrParseError(_)) => true,
                 _ => false,
             },
@@ -120,7 +120,7 @@ mod tests {
         );
 
         assert!(
-            match IP::from_str("192.168.56.0/100000000") {
+            match Ip::from_str("192.168.56.0/100000000") {
                 Err(ParseError::CidrParseError(_)) => true,
                 _ => false,
             },
@@ -128,7 +128,7 @@ mod tests {
         );
 
         assert!(
-            match IP::from_str("192.168.56.0/") {
+            match Ip::from_str("192.168.56.0/") {
                 Err(ParseError::CidrParseError(_)) => true,
                 _ => false,
             },
@@ -139,39 +139,39 @@ mod tests {
     #[test]
     fn test_parse_ip_v6() {
         assert_eq!(
-            IP::from_str("2001:0db8:85a3:0000:0000:8a2e:0370:7334").unwrap(),
-            IP {
+            Ip::from_str("2001:0db8:85a3:0000:0000:8a2e:0370:7334").unwrap(),
+            Ip {
                 addr: IpAddr::from_str("2001:0db8:85a3:0000:0000:8a2e:0370:7334").unwrap(),
                 cidr: None
             },
         );
 
         assert_eq!(
-            IP::from_str("::1234:5678").unwrap(),
-            IP {
+            Ip::from_str("::1234:5678").unwrap(),
+            Ip {
                 addr: IpAddr::from_str("::1234:5678").unwrap(),
                 cidr: None
             },
         );
 
         assert_eq!(
-            IP::from_str("2001:db8::").unwrap(),
-            IP {
+            Ip::from_str("2001:db8::").unwrap(),
+            Ip {
                 addr: IpAddr::from_str("2001:db8::").unwrap(),
                 cidr: None
             },
         );
 
         assert_eq!(
-            IP::from_str("2001:1111:2222:3333::/64").unwrap(),
-            IP {
+            Ip::from_str("2001:1111:2222:3333::/64").unwrap(),
+            Ip {
                 addr: IpAddr::from_str("2001:1111:2222:3333::").unwrap(),
                 cidr: Some(IpCidr::from_str("2001:1111:2222:3333::/64").unwrap()),
             },
         );
 
         assert!(
-            match IP::from_str("2001:1111:2222:3333::/test") {
+            match Ip::from_str("2001:1111:2222:3333::/test") {
                 Err(ParseError::CidrParseError(_)) => true,
                 _ => false,
             },
@@ -179,7 +179,7 @@ mod tests {
         );
 
         assert!(
-            match IP::from_str("2001:1111:2222:3333::/123312312312") {
+            match Ip::from_str("2001:1111:2222:3333::/123312312312") {
                 Err(ParseError::CidrParseError(_)) => true,
                 _ => false,
             },
@@ -187,7 +187,7 @@ mod tests {
         );
 
         assert!(
-            match IP::from_str("2001:1111:2222:3333::/") {
+            match Ip::from_str("2001:1111:2222:3333::/") {
                 Err(ParseError::CidrParseError(_)) => true,
                 _ => false,
             },
@@ -197,17 +197,17 @@ mod tests {
 
     #[test]
     fn test_contains() {
-        assert!(IP::from_str("127.0.0.0/24")
+        assert!(Ip::from_str("127.0.0.0/24")
             .unwrap()
-            .contains(&IP::from_str("127.0.0.1").unwrap()));
-        assert!(IP::from_str("127.0.0.0/24")
+            .contains(&Ip::from_str("127.0.0.1").unwrap()));
+        assert!(Ip::from_str("127.0.0.0/24")
             .unwrap()
-            .contains(&IP::from_str("127.0.0.50").unwrap()));
-        assert!(IP::from_str("127.0.0.0/24")
+            .contains(&Ip::from_str("127.0.0.50").unwrap()));
+        assert!(Ip::from_str("127.0.0.0/24")
             .unwrap()
-            .contains(&IP::from_str("127.0.0.255").unwrap()));
-        assert!(!IP::from_str("127.0.0.0/24")
+            .contains(&Ip::from_str("127.0.0.255").unwrap()));
+        assert!(!Ip::from_str("127.0.0.0/24")
             .unwrap()
-            .contains(&IP::from_str("128.0.0.3").unwrap()));
+            .contains(&Ip::from_str("128.0.0.3").unwrap()));
     }
 }

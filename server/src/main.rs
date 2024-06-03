@@ -1,6 +1,7 @@
 use proto::auth_server::{Auth, AuthServer};
 use server::app::{
     config::Config,
+    connection::connect,
     migrations::run_app_migrations,
     service::auth::{Auth as AuthAppService, Credentials},
 };
@@ -66,7 +67,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::parse(path.as_path()).unwrap();
     println!("Config: {:?}", config);
 
-    run_app_migrations(&config.db).await;
+    let (mut client, connection) = connect(&config.db).await;
+
+    // The connection object performs the actual communication with the database,
+    // so spawn it off to run on its own.
+    tokio::spawn(async move {
+        connection.await.unwrap();
+    });
+
+    run_app_migrations(&mut client).await;
 
     let addr = ADDR.parse()?;
     let auth = AuthService::new(&config);
