@@ -1,14 +1,18 @@
 use super::ip::Ip;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type Client = Arc<Mutex<tokio_postgres::Client>>;
 
-pub struct List<'a> {
-    client: &'a tokio_postgres::Client,
+#[derive(Debug)]
+pub struct List {
+    client: Client,
     kind: String,
 }
 
-impl<'a> List<'a> {
-    pub fn new(client: &'a tokio_postgres::Client, kind: &str) -> Self {
+impl List {
+    pub fn new(client: Client, kind: &str) -> Self {
         Self {
             client,
             kind: kind.to_owned(),
@@ -18,7 +22,9 @@ impl<'a> List<'a> {
     pub async fn has(&self, ip: &Ip) -> Result<bool> {
         let row = match ip.network_length() {
             Some(network_length) => {
-                self.client
+                Arc::clone(&self.client)
+                    .lock()
+                    .await
                     .query_one(
                         r#"
 SELECT EXISTS(
@@ -30,7 +36,9 @@ SELECT EXISTS(
                     .await
             }
             None => {
-                self.client
+                Arc::clone(&self.client)
+                    .lock()
+                    .await
                     .query_one(
                         r#"
 SELECT EXISTS(
@@ -49,7 +57,9 @@ SELECT EXISTS(
     }
 
     pub async fn add(&self, ip: &Ip) -> Result<()> {
-        self.client
+        Arc::clone(&self.client)
+            .lock()
+            .await
             .execute(
                 r#"
         INSERT INTO ip_list (ip, mask, ip_str, network_length, is_v6, kind)
@@ -72,7 +82,9 @@ SELECT EXISTS(
     pub async fn delete(&self, ip: &Ip) -> Result<()> {
         match ip.network_length() {
             Some(network_length) => {
-                self.client
+                Arc::clone(&self.client)
+                    .lock()
+                    .await
                     .execute(
                         r#"
 DELETE FROM ip_list 
@@ -82,7 +94,9 @@ WHERE kind = $1 AND ip = $2 AND network_length = $3"#,
                     .await?;
             }
             None => {
-                self.client
+                Arc::clone(&self.client)
+                    .lock()
+                    .await
                     .execute(
                         r#"
 DELETE FROM ip_list 
@@ -97,8 +111,9 @@ WHERE kind = $1 AND ip = $2"#,
     }
 
     pub async fn is_conform(&self, ip: &Ip) -> Result<bool> {
-        let row = self
-            .client
+        let row = Arc::clone(&self.client)
+            .lock()
+            .await
             .query_one(
                 r#"
 SELECT EXISTS(

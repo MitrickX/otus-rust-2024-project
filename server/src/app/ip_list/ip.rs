@@ -22,6 +22,12 @@ pub enum ParseError {
     CidrParseError(cidr::errors::NetworkParseError),
 }
 
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 impl FromStr for Ip {
     type Err = ParseError;
     fn from_str(s: &str) -> Result<Ip, Self::Err> {

@@ -5,7 +5,8 @@ use server::app::{
     migrations::run_app_migrations,
     service::auth::{Auth as AuthAppService, Credentials},
 };
-use std::error::Error;
+use std::{error::Error, sync::Arc};
+use tokio::sync::Mutex;
 use tonic::transport::Server;
 
 mod proto {
@@ -15,25 +16,11 @@ mod proto {
         tonic::include_file_descriptor_set!("auth_descriptor");
 }
 
-#[derive(Debug)]
-struct AuthService {
-    auth_app_service: AuthAppService,
-}
-
-impl AuthService {
-    fn new(config: &Config) -> Self {
-        let service = AuthAppService::new(config);
-        Self {
-            auth_app_service: service,
-        }
-    }
-}
-
 const ADDR: &str = "[::1]:50051";
 const CONFIG_PATH: &str = "./configs/server/config.yaml";
 
 #[tonic::async_trait]
-impl Auth for AuthService {
+impl Auth for AuthAppService {
     async fn auth(
         &self,
         request: tonic::Request<proto::AuthRequest>,
@@ -43,22 +30,27 @@ impl Auth for AuthService {
         let input = request.get_ref();
 
         let is_ok_auth = self
-            .auth_app_service
             .check(Credentials {
                 login: input.login.clone(),
                 password: input.password.clone(),
                 ip: input.ip.clone(),
             })
-            .await;
+            .await
+            .unwrap_or_else(|e| {
+                // TODO: Log error
+                println!("Error: {:?}", e);
+                false
+            });
+
         let response = proto::AuthResponse { ok: is_ok_auth };
-
         println!("Response: {:?}", response);
-
         Ok(tonic::Response::new(response))
     }
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let addr = ADDR.parse()?;
+
     let mut path = std::env::current_dir()?;
     path.push(CONFIG_PATH);
 
@@ -77,8 +69,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     run_app_migrations(&mut client).await;
 
-    let addr = ADDR.parse()?;
-    let auth = AuthService::new(&config);
+    let auth = AuthAppService::new(&config, Arc::new(Mutex::new(client)));
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)

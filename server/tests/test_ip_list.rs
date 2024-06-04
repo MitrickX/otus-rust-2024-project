@@ -7,7 +7,8 @@ use server::app::{
     ip_list::{ip::Ip, list::List},
     migrations::run_app_migrations,
 };
-use std::{path::Path, str::FromStr};
+use std::{path::Path, str::FromStr, sync::Arc};
+use tokio::sync::Mutex;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -63,7 +64,8 @@ async fn test_ip_list_simple_crud() {
         connection.await.unwrap();
     });
 
-    let list = List::new(&client, &list_kind);
+    let client = Arc::new(Mutex::new(client));
+    let list = List::new(Arc::clone(&client), &list_kind);
     let ip_v4_with_mask = Ip::from_str("192.168.56.0/24").unwrap();
     let ip_v4_without_mask = Ip::from_str("192.168.56.1").unwrap();
     let ip_v6_with_mask = Ip::from_str("2001:1111:2222:3333::/64").unwrap();
@@ -81,7 +83,9 @@ async fn test_ip_list_simple_crud() {
     list.add(&ip_v6_without_mask).await.unwrap();
 
     // total count is 4 records
-    let result = client
+    let result = Arc::clone(&client)
+        .lock()
+        .await
         .query_one(
             r#"SELECT COUNT(*) as count FROM ip_list WHERE kind = $1"#,
             &[&list_kind],
@@ -147,7 +151,9 @@ async fn test_ip_list_simple_crud() {
     list.delete(&ip_v6_without_mask).await.unwrap();
 
     // total count is 4 records
-    let result = client
+    let result = Arc::clone(&client)
+        .lock()
+        .await
         .query_one(
             r#"SELECT COUNT(*) as count FROM ip_list WHERE kind = $1"#,
             &[&list_kind],
@@ -175,7 +181,8 @@ async fn test_conform_ip_v4() {
         connection.await.unwrap();
     });
 
-    let list = List::new(&client, &list_kind);
+    let client = Arc::new(Mutex::new(client));
+    let list = List::new(Arc::clone(&client), &list_kind);
 
     let ip_str = "192.168.56.0/24";
     list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
@@ -230,7 +237,8 @@ async fn test_conform_ip_v6() {
         connection.await.unwrap();
     });
 
-    let list = List::new(&client, &list_kind);
+    let client = Arc::new(Mutex::new(client));
+    let list = List::new(Arc::clone(&client), &list_kind);
 
     let ip_str = "2001:1111:2222:3333::/64";
     list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
