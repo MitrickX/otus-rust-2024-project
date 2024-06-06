@@ -1,48 +1,49 @@
 use cucumber::{given, then, when, World as _};
+use proto::api_client::ApiClient;
+
+// TODO: move port to env var
+const ADDR: &str = "http://[::1]:50051";
+
+pub mod proto {
+    tonic::include_proto!("api");
+}
 
 #[derive(cucumber::World, Debug, Default)]
 struct World {
-    black_list: Vec<String>,
-    white_list: Vec<String>,
-    list_kind: String,
+    status: String,
 }
 
-#[given(regex = r#"(.+) list$"#)]
-async fn black_list_is(w: &mut World, list_kind: String) {
-    if list_kind == "black" {
-        w.black_list = Vec::new();
-        w.list_kind = list_kind;
-    } else if list_kind == "white" {
-        w.white_list = Vec::new();
-        w.list_kind = list_kind;
-    } else {
+#[given(regex = r#"API Client$"#)]
+async fn given_api_client(w: &mut World) {
+    // check connection to server
+    ApiClient::connect(ADDR).await.unwrap();
+}
+
+#[when(regex = r#"^add ip (.+) to (.+) list"#)]
+async fn add_ip_in_list(w: &mut World, ip: String, list_kind: String) {
+    if list_kind != "black" && list_kind != "white" {
         panic!("Unknown list kind: {}", list_kind)
     }
-}
 
-#[when(regex = r#"^add ip (.+)"#)]
-async fn add_ip_in_list(w: &mut World, ip: String) {
-    if w.list_kind == "black" {
-        w.black_list.push(ip);
-    } else if w.list_kind == "white" {
-        w.white_list.push(ip);
-    } else {
-        panic!("Unknown list kind: {}", w.list_kind)
+    let req = proto::AddIpInListRequest { ip };
+    let request = tonic::Request::new(req);
+
+    let mut client = ApiClient::connect(ADDR).await.unwrap();
+
+    match client.add_in_black_list(request).await {
+        Ok(_) => w.status = "ok".to_string(),
+        Err(status) => w.status = format!("grpc status: {:?}", status),
     }
 }
 
-#[then("ok")]
-async fn is_ok(w: &mut World) {
-    if w.list_kind == "black" {
-        assert!(w.black_list.len() > 0, "black list is empty");
-    } else if w.list_kind == "white" {
-        assert!(w.white_list.len() > 0, "white list is empty");
-    } else {
-        panic!("Unknown list kind: {}", w.list_kind)
-    }
+#[then("response is ok")]
+async fn is_response_ok(w: &mut World) {
+    assert_eq!("ok", w.status);
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     World::run("tests/api/ip_list/features").await;
+
+    Ok(())
 }

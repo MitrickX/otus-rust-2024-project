@@ -3,7 +3,6 @@ use server::app::{
     api::Api as ApiService, api::Credentials, config::Config, connection::connect,
     migrations::run_app_migrations,
 };
-
 use std::{error::Error, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::transport::Server;
@@ -12,10 +11,12 @@ mod proto {
     tonic::include_proto!("api");
 
     pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
-        tonic::include_file_descriptor_set!("auth_descriptor");
+        tonic::include_file_descriptor_set!("api_descriptor");
 }
 
+// TODO: move port to env var
 const ADDR: &str = "[::1]:50051";
+// TODO: move db connections to env var (and use docker compose)
 const CONFIG_PATH: &str = "./configs/server/config.yaml";
 
 #[tonic::async_trait]
