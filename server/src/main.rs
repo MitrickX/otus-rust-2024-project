@@ -1,12 +1,14 @@
-use proto::api_server::{Api, ApiServer};
-use server::app::{
+use app::{
     api::Api as ApiService, api::Credentials, config::Config, connection::connect,
     migrations::run_app_migrations,
 };
+use proto::api_server::{Api, ApiServer};
 
 use std::{error::Error, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::transport::Server;
+
+pub mod app;
 
 mod proto {
     tonic::include_proto!("api");
