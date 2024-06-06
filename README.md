@@ -34,7 +34,7 @@ cargo test --package server --test test_ip_list -- --nocapture
 
 4) Запустить API тесты 
 ```
-cargo test --test readme --package server
+cargo test --test api_test_ip_list --package server
 ```
 
 **Examples**
