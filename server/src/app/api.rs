@@ -17,7 +17,7 @@ pub struct Credentials {
 }
 
 #[derive(Debug)]
-pub struct Auth {
+pub struct Api {
     rate_limit_login: Arc<Mutex<RateLimit<String>>>,
     rate_limit_password: Arc<Mutex<RateLimit<String>>>,
     rate_limit_ip: Arc<Mutex<RateLimit<String>>>,
@@ -25,7 +25,7 @@ pub struct Auth {
     white_ip_list: List,
 }
 
-impl Auth {
+impl Api {
     pub fn new(config: &Config, client: Client) -> Self {
         let bucket_active_secs = Duration::from_secs(config.timeouts.bucket_active_secs);
         let rate_limit_login = Arc::new(Mutex::new(RateLimit::new(

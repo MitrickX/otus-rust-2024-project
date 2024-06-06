@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package auth;
+package api;
 
 message None {}
 
@@ -14,9 +14,9 @@ message AuthResponse {
     bool ok = 1;
 }
 
-// message IPRequest {
-//     string ip = 1;
-// }
+message AddIPInListRequest {
+    string ip = 1;
+}
 
 // message BucketRequest {
 //     string login = 1;
@@ -30,9 +30,9 @@ message AuthResponse {
 //     uint32 ip = 3;
 // }
 
-service Auth {
-    // rpc AddInBlackList (IPRequest)      returns (None) {};
-    // rpc AddInWhiteList (IPRequest)      returns (None) {};
+service Api {
+    rpc AddInBlackList (AddIPInListRequest)      returns (None) {};
+    rpc AddInWhiteList (AddIPInListRequest)      returns (None) {};
     // rpc DeleteFromBlackList (IPRequest) returns (None) {};
     // rpc DeleteFromWhiteList (IPRequest) returns (None) {};
     // rpc ClearBucket(BucketRequest)      returns (None) {};
@@ -45,5 +45,3 @@ service Auth {
     // // For integration tests get all counts of all type of buckets
     // rpc CountBuckets(None)               returns (BucketCountsResponse) {};
 }
-
-//service Admin {}
