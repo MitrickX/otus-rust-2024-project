@@ -21,16 +21,14 @@ const CONFIG_PATH: &str = "./configs/server/config.yaml";
 
 #[tonic::async_trait]
 impl Api for ApiService {
-    async fn auth(
+    async fn can_auth(
         &self,
-        request: tonic::Request<proto::AuthRequest>,
-    ) -> Result<tonic::Response<proto::AuthResponse>, tonic::Status> {
-        println!("Got a request: {:?}", request);
-
+        request: tonic::Request<proto::CanAuthRequest>,
+    ) -> Result<tonic::Response<proto::CanAuthResponse>, tonic::Status> {
         let input = request.get_ref();
 
         let is_ok_auth = self
-            .check(Credentials {
+            .check_can_auth(Credentials {
                 login: input.login.clone(),
                 password: input.password.clone(),
                 ip: input.ip.clone(),
@@ -42,25 +40,76 @@ impl Api for ApiService {
                 false
             });
 
-        let response = proto::AuthResponse { ok: is_ok_auth };
-        println!("Response: {:?}", response);
+        let response = proto::CanAuthResponse { ok: is_ok_auth };
         Ok(tonic::Response::new(response))
     }
 
-    async fn add_in_black_list(
+    async fn add_ip_in_black_list(
         &self,
-        _request: tonic::Request<proto::AddIpInListRequest>,
-    ) -> Result<tonic::Response<proto::None>, tonic::Status> {
-        // let input = request.get_ref();
-        // self.add(&input.ip).await.unwrap();
-        Ok(tonic::Response::new(proto::None {}))
+        request: tonic::Request<proto::AddIpInListRequest>,
+    ) -> Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
+        let input = request.get_ref();
+        let _ = self.add_ip_in_black_list(input.ip.clone()).await;
+
+        Ok(tonic::Response::new(proto::AddIpInListResponse {}))
     }
 
-    async fn add_in_white_list(
+    async fn add_ip_in_white_list(
         &self,
-        _request: tonic::Request<proto::AddIpInListRequest>,
-    ) -> std::result::Result<tonic::Response<proto::None>, tonic::Status> {
-        Ok(tonic::Response::new(proto::None {}))
+        request: tonic::Request<proto::AddIpInListRequest>,
+    ) -> std::result::Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
+        let input = request.get_ref();
+        let _ = self.add_ip_in_white_list(input.ip.clone()).await;
+
+        Ok(tonic::Response::new(proto::AddIpInListResponse {}))
+    }
+
+    async fn delete_ip_from_black_list(
+        &self,
+        request: tonic::Request<proto::DeleteIpFromListRequest>,
+    ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
+        let input = request.get_ref();
+        let _ = self.delete_ip_from_black_list(input.ip.clone()).await;
+
+        Ok(tonic::Response::new(proto::DeleteIpFromListResponse {}))
+    }
+
+    async fn delete_ip_from_white_list(
+        &self,
+        request: tonic::Request<proto::DeleteIpFromListRequest>,
+    ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
+        let input = request.get_ref();
+        let _ = self.delete_ip_from_white_list(input.ip.clone()).await;
+
+        Ok(tonic::Response::new(proto::DeleteIpFromListResponse {}))
+    }
+
+    async fn is_ip_in_black_list(
+        &self,
+        request: tonic::Request<proto::IsIpInListRequest>,
+    ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
+        let input = request.get_ref();
+        match self.is_ip_in_black_list(input.ip.clone()).await {
+            Ok(ok) => Ok(tonic::Response::new(proto::IsIpInListResponse { ok })),
+            Err(status) => Err(tonic::Status::new(
+                tonic::Code::Internal,
+                status.to_string(),
+            )),
+        }
+    }
+
+    async fn is_ip_in_white_list(
+        &self,
+        request: tonic::Request<proto::IsIpInListRequest>,
+    ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
+        let input = request.get_ref();
+        match self.is_ip_in_white_list(input.ip.clone()).await {
+            Ok(ok) => Ok(tonic::Response::new(proto::IsIpInListResponse { ok })),
+            Err(status) => Err(tonic::Status::new(
+                tonic::Code::Internal,
+                status.to_string(),
+            )),
+        }
     }
 }
 #[tokio::main]

@@ -2,20 +2,34 @@ syntax = "proto3";
 
 package api;
 
-message None {}
-
-message AuthRequest {
+message CanAuthRequest {
     string login = 1;
     string password = 2;
     string ip = 3;
 }
 
-message AuthResponse {
+message CanAuthResponse {
     bool ok = 1;
 }
 
-message AddIPInListRequest {
+message AddIpInListRequest {
     string ip = 1;
+}
+
+message AddIpInListResponse {}
+
+message DeleteIpFromListRequest {
+    string ip = 1;
+}
+
+message DeleteIpFromListResponse {}
+
+message IsIpInListRequest {
+    string ip = 1;
+}
+
+message IsIpInListResponse {
+    bool ok = 1;
 }
 
 // message BucketRequest {
@@ -31,12 +45,15 @@ message AddIPInListRequest {
 // }
 
 service Api {
-    rpc AddInBlackList (AddIPInListRequest)      returns (None) {};
-    rpc AddInWhiteList (AddIPInListRequest)      returns (None) {};
-    // rpc DeleteFromBlackList (IPRequest) returns (None) {};
-    // rpc DeleteFromWhiteList (IPRequest) returns (None) {};
+    rpc AddIpInBlackList (AddIpInListRequest) returns (AddIpInListResponse) {};
+    rpc AddIpInWhiteList (AddIpInListRequest) returns (AddIpInListResponse) {};
+    rpc DeleteIpFromBlackList (DeleteIpFromListRequest) returns (DeleteIpFromListResponse) {};
+    rpc DeleteIpFromWhiteList (DeleteIpFromListRequest) returns (DeleteIpFromListResponse) {};
+    rpc IsIpInBlackList (IsIpInListRequest) returns (IsIpInListResponse) {};
+    rpc IsIpInWhiteList (IsIpInListRequest) returns (IsIpInListResponse) {};
+    rpc CanAuth(CanAuthRequest) returns (CanAuthResponse) {};
+
     // rpc ClearBucket(BucketRequest)      returns (None) {};
-    rpc Auth(AuthRequest)               returns (AuthResponse) {};
 
     // // For integration tests when need clean lists before run tests
     // rpc ClearBlackList(None)                returns (None) {};

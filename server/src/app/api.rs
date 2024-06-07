@@ -41,8 +41,8 @@ impl Api {
             bucket_active_secs,
         )));
 
-        let black_list_ip_list = List::new(Arc::clone(&client), "black_ip_list");
-        let white_list_ip_list = List::new(Arc::clone(&client), "white_ip_list");
+        let black_list_ip_list = List::new(Arc::clone(&client), "black");
+        let white_list_ip_list = List::new(Arc::clone(&client), "white");
 
         Self {
             rate_limit_login,
@@ -53,7 +53,7 @@ impl Api {
         }
     }
 
-    pub async fn check(&self, credentials: Credentials) -> Result<bool> {
+    pub async fn check_can_auth(&self, credentials: Credentials) -> Result<bool> {
         let is_ip_conformed = self.is_ip_conformed(credentials.ip).await?;
 
         Ok(is_ip_conformed
@@ -94,5 +94,35 @@ impl Api {
             .lock()
             .await
             .is_conformed(ip))
+    }
+
+    pub async fn add_ip_in_white_list(&self, ip: String) -> Result<()> {
+        let ip_addr = Ip::from_str(&ip).unwrap();
+        self.white_ip_list.add(&ip_addr).await
+    }
+
+    pub async fn add_ip_in_black_list(&self, ip: String) -> Result<()> {
+        let ip_addr = Ip::from_str(&ip).unwrap();
+        self.black_ip_list.add(&ip_addr).await
+    }
+
+    pub async fn delete_ip_from_white_list(&self, ip: String) -> Result<()> {
+        let ip_addr = Ip::from_str(&ip).unwrap();
+        self.white_ip_list.delete(&ip_addr).await
+    }
+
+    pub async fn delete_ip_from_black_list(&self, ip: String) -> Result<()> {
+        let ip_addr = Ip::from_str(&ip).unwrap();
+        self.black_ip_list.delete(&ip_addr).await
+    }
+
+    pub async fn is_ip_in_white_list(&self, ip: String) -> Result<bool> {
+        let ip_addr = Ip::from_str(&ip).unwrap();
+        self.white_ip_list.has(&ip_addr).await
+    }
+
+    pub async fn is_ip_in_black_list(&self, ip: String) -> Result<bool> {
+        let ip_addr = Ip::from_str(&ip).unwrap();
+        self.black_ip_list.has(&ip_addr).await
     }
 }
