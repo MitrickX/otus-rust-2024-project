@@ -169,4 +169,18 @@ impl Api {
             .await
             .map_err(ApiError::IpListError)
     }
+
+    pub async fn clear_black_list(&self) -> Result<()> {
+        self.black_ip_list
+            .clear()
+            .await
+            .map_err(ApiError::IpListError)
+    }
+
+    pub async fn clear_white_list(&self) -> Result<()> {
+        self.white_ip_list
+            .clear()
+            .await
+            .map_err(ApiError::IpListError)
+    }
 }

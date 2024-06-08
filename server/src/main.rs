@@ -124,7 +124,30 @@ impl Api for ApiService {
 
         Ok(tonic::Response::new(proto::IsIpInListResponse { ok }))
     }
+
+    async fn clear_black_list(
+        &self,
+        _request: tonic::Request<proto::ClearListRequest>,
+    ) -> std::result::Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status> {
+        self.clear_black_list()
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
+        Ok(tonic::Response::new(proto::ClearBucketResponse {}))
+    }
+
+    async fn clear_white_list(
+        &self,
+        _request: tonic::Request<proto::ClearListRequest>,
+    ) -> std::result::Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status> {
+        self.clear_white_list()
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
+        Ok(tonic::Response::new(proto::ClearBucketResponse {}))
+    }
 }
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let addr = ADDR.parse()?;

@@ -1,6 +1,6 @@
 use cucumber::{given, then, when, World as _};
 use proto::api_client::ApiClient;
-use std::{fmt::format, str::FromStr};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy)]
 enum ListKind {
@@ -63,6 +63,20 @@ impl Status {
 #[derive(cucumber::World, Debug, Default)]
 struct World {
     status: Status,
+}
+
+#[given(regex = r#"^empty (.+) list$"#)]
+async fn empty_list(_w: &mut World, list_kind: String) {
+    let req = proto::ClearListRequest {};
+    let request = tonic::Request::new(req);
+
+    let mut client = ApiClient::connect(ADDR).await.unwrap();
+
+    match ListKind::from_str(&list_kind).unwrap() {
+        ListKind::White => client.clear_white_list(request).await,
+        ListKind::Black => client.clear_black_list(request).await,
+    }
+    .unwrap();
 }
 
 #[given(regex = r#"(.+) list with ip (.+)$"#)]
@@ -137,9 +151,14 @@ async fn list_has_not_ip(w: &mut World, list_kind: String, ip: String) {
     }
 }
 
-#[then("authorization is not allowed")]
+#[then(regex = "authorization is not allowed")]
 async fn authorization_is_not_allowed(w: &mut World) {
     w.status.ok_or_panic(|r| assert_eq!(r, "false"));
+}
+
+#[then(regex = "authorization is allowed")]
+async fn authorization_is_allowed(w: &mut World) {
+    w.status.ok_or_panic(|r| assert_eq!(r, "true"));
 }
 
 async fn do_add_ip_in_list(
@@ -191,6 +210,5 @@ async fn check_list_has_ip(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     World::run("tests/api/features").await;
-
     Ok(())
 }
