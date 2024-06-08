@@ -2,13 +2,13 @@ syntax = "proto3";
 
 package api;
 
-message CanAuthRequest {
+message IsAuthAllowedRequest {
     string login = 1;
     string password = 2;
     string ip = 3;
 }
 
-message CanAuthResponse {
+message IsAuthAllowedResponse {
     bool ok = 1;
 }
 
@@ -51,7 +51,7 @@ service Api {
     rpc DeleteIpFromWhiteList (DeleteIpFromListRequest) returns (DeleteIpFromListResponse) {};
     rpc IsIpInBlackList (IsIpInListRequest) returns (IsIpInListResponse) {};
     rpc IsIpInWhiteList (IsIpInListRequest) returns (IsIpInListResponse) {};
-    rpc CanAuth(CanAuthRequest) returns (CanAuthResponse) {};
+    rpc IsAuthAllowed(IsAuthAllowedRequest) returns (IsAuthAllowedResponse) {};
 
     // rpc ClearBucket(BucketRequest)      returns (None) {};
 

@@ -28,6 +28,8 @@ impl std::fmt::Display for ParseError {
     }
 }
 
+impl std::error::Error for ParseError {}
+
 impl FromStr for Ip {
     type Err = ParseError;
     fn from_str(s: &str) -> Result<Ip, Self::Err> {

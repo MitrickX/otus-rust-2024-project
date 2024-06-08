@@ -1,6 +1,6 @@
 use cucumber::{given, then, when, World as _};
 use proto::api_client::ApiClient;
-use std::str::FromStr;
+use std::{fmt::format, str::FromStr};
 
 #[derive(Debug, Clone, Copy)]
 enum ListKind {
@@ -27,9 +27,42 @@ pub mod proto {
     tonic::include_proto!("api");
 }
 
+#[derive(Debug)]
+enum Status {
+    Ok(String),
+    Error(String),
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Status::Ok("ok".to_string())
+    }
+}
+
+impl Status {
+    pub fn is_ok(&self) -> bool {
+        matches!(*self, Status::Ok(_))
+    }
+
+    pub fn from_grpc(status: tonic::Status) -> Self {
+        Status::Error(format!("grpc status: {:?}", status))
+    }
+
+    pub fn panic(&self) {
+        panic!("{:?}", self);
+    }
+
+    pub fn ok_or_panic(&self, f: impl FnOnce(&str)) {
+        match *self {
+            Status::Ok(ref s) => f(s),
+            Status::Error(_) => self.panic(),
+        }
+    }
+}
+
 #[derive(cucumber::World, Debug, Default)]
 struct World {
-    status: String,
+    status: Status,
 }
 
 #[given(regex = r#"(.+) list with ip (.+)$"#)]
@@ -46,25 +79,42 @@ async fn given_list_without_ip(_w: &mut World, list_kind: String, ip: String) {
         .unwrap();
 }
 
-#[when(regex = r#"^add ip (.+) to (.+) list"#)]
+#[when(regex = r#"^add ip (.+) to (.+) list$"#)]
 async fn add_ip_in_list(w: &mut World, ip: String, list_kind: String) {
     w.status = match do_add_ip_in_list(&ip, ListKind::from_str(&list_kind).unwrap()).await {
-        Ok(_) => "ok".to_string(),
-        Err(status) => format!("grpc status: {:?}", status),
+        Ok(_) => Status::default(),
+        Err(status) => Status::from_grpc(status),
     }
 }
 
-#[when(regex = r#"^delete ip (.+) from (.+) list"#)]
+#[when(regex = r#"^delete ip (.+) from (.+) list$"#)]
 async fn delete_ip_from_list(w: &mut World, ip: String, list_kind: String) {
     w.status = match do_delete_ip_from_list(&ip, ListKind::from_str(&list_kind).unwrap()).await {
-        Ok(_) => "ok".to_string(),
-        Err(status) => format!("grpc status: {:?}", status),
+        Ok(_) => Status::default(),
+        Err(status) => Status::from_grpc(status),
     }
 }
 
-#[then("response is ok")]
+#[when(regex = r#"^checking authorization with ip (.+)$"#)]
+async fn checking_authorization_with_ip(w: &mut World, ip: String) {
+    let req = proto::IsAuthAllowedRequest {
+        login: "some_test_login".to_owned(),
+        password: "some_test_password".to_owned(),
+        ip: ip.to_string(),
+    };
+    let request = tonic::Request::new(req);
+
+    let mut client = ApiClient::connect(ADDR).await.unwrap();
+
+    w.status = match client.is_auth_allowed(request).await {
+        Ok(result) => Status::Ok(result.get_ref().ok.to_string()),
+        Err(status) => Status::from_grpc(status),
+    }
+}
+
+#[then("response status is ok")]
 async fn is_response_ok(w: &mut World) {
-    assert_eq!("ok", w.status);
+    assert!(w.status.is_ok());
 }
 
 #[then(regex = r#"^(.+) list has ip (.+)"#)]
@@ -73,7 +123,7 @@ async fn list_has_ip(w: &mut World, list_kind: String, ip: String) {
         Ok(response) => {
             assert!(response.get_ref().ok);
         }
-        Err(status) => panic!("grpc status: {:?}", status),
+        Err(status) => Status::from_grpc(status).panic(),
     }
 }
 
@@ -83,8 +133,13 @@ async fn list_has_not_ip(w: &mut World, list_kind: String, ip: String) {
         Ok(response) => {
             assert!(!response.get_ref().ok);
         }
-        Err(status) => panic!("grpc status: {:?}", status),
+        Err(status) => Status::from_grpc(status).panic(),
     }
+}
+
+#[then("authorization is not allowed")]
+async fn authorization_is_not_allowed(w: &mut World) {
+    w.status.ok_or_panic(|r| assert_eq!(r, "false"));
 }
 
 async fn do_add_ip_in_list(

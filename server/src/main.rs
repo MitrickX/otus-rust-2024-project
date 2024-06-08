@@ -1,6 +1,8 @@
 use proto::api_server::{Api, ApiServer};
 use server::app::{
-    api::Api as ApiService, api::Credentials, config::Config, connection::connect,
+    api::{Api as ApiService, ApiError, Credentials},
+    config::Config,
+    connection::connect,
     migrations::run_app_migrations,
 };
 use std::{error::Error, sync::Arc};
@@ -19,12 +21,21 @@ const ADDR: &str = "[::1]:50051";
 // TODO: move db connections to env var (and use docker compose)
 const CONFIG_PATH: &str = "./configs/server/config.yaml";
 
+fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
+    match err {
+        ApiError::IpParseError(e) => {
+            tonic::Status::new(tonic::Code::InvalidArgument, e.to_string())
+        }
+        ApiError::IpListError(_) => tonic::Status::new(tonic::Code::Internal, err.to_string()),
+    }
+}
+
 #[tonic::async_trait]
 impl Api for ApiService {
-    async fn can_auth(
+    async fn is_auth_allowed(
         &self,
-        request: tonic::Request<proto::CanAuthRequest>,
-    ) -> Result<tonic::Response<proto::CanAuthResponse>, tonic::Status> {
+        request: tonic::Request<proto::IsAuthAllowedRequest>,
+    ) -> Result<tonic::Response<proto::IsAuthAllowedResponse>, tonic::Status> {
         let input = request.get_ref();
 
         let is_ok_auth = self
@@ -34,13 +45,9 @@ impl Api for ApiService {
                 ip: input.ip.clone(),
             })
             .await
-            .unwrap_or_else(|e| {
-                // TODO: Log error
-                println!("Error: {:?}", e);
-                false
-            });
+            .map_err(map_api_to_grpc_error)?;
 
-        let response = proto::CanAuthResponse { ok: is_ok_auth };
+        let response = proto::IsAuthAllowedResponse { ok: is_ok_auth };
         Ok(tonic::Response::new(response))
     }
 
@@ -49,7 +56,9 @@ impl Api for ApiService {
         request: tonic::Request<proto::AddIpInListRequest>,
     ) -> Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
-        let _ = self.add_ip_in_black_list(input.ip.clone()).await;
+        self.add_ip_in_black_list(input.ip.clone())
+            .await
+            .map_err(map_api_to_grpc_error)?;
 
         Ok(tonic::Response::new(proto::AddIpInListResponse {}))
     }
@@ -59,7 +68,9 @@ impl Api for ApiService {
         request: tonic::Request<proto::AddIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
-        let _ = self.add_ip_in_white_list(input.ip.clone()).await;
+        self.add_ip_in_white_list(input.ip.clone())
+            .await
+            .map_err(map_api_to_grpc_error)?;
 
         Ok(tonic::Response::new(proto::AddIpInListResponse {}))
     }
@@ -69,7 +80,9 @@ impl Api for ApiService {
         request: tonic::Request<proto::DeleteIpFromListRequest>,
     ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
         let input = request.get_ref();
-        let _ = self.delete_ip_from_black_list(input.ip.clone()).await;
+        self.delete_ip_from_black_list(input.ip.clone())
+            .await
+            .map_err(map_api_to_grpc_error)?;
 
         Ok(tonic::Response::new(proto::DeleteIpFromListResponse {}))
     }
@@ -79,7 +92,9 @@ impl Api for ApiService {
         request: tonic::Request<proto::DeleteIpFromListRequest>,
     ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
         let input = request.get_ref();
-        let _ = self.delete_ip_from_white_list(input.ip.clone()).await;
+        self.delete_ip_from_white_list(input.ip.clone())
+            .await
+            .map_err(map_api_to_grpc_error)?;
 
         Ok(tonic::Response::new(proto::DeleteIpFromListResponse {}))
     }
@@ -89,13 +104,12 @@ impl Api for ApiService {
         request: tonic::Request<proto::IsIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
-        match self.is_ip_in_black_list(input.ip.clone()).await {
-            Ok(ok) => Ok(tonic::Response::new(proto::IsIpInListResponse { ok })),
-            Err(status) => Err(tonic::Status::new(
-                tonic::Code::Internal,
-                status.to_string(),
-            )),
-        }
+        let ok = self
+            .is_ip_in_black_list(input.ip.clone())
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
+        Ok(tonic::Response::new(proto::IsIpInListResponse { ok }))
     }
 
     async fn is_ip_in_white_list(
@@ -103,13 +117,12 @@ impl Api for ApiService {
         request: tonic::Request<proto::IsIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
-        match self.is_ip_in_white_list(input.ip.clone()).await {
-            Ok(ok) => Ok(tonic::Response::new(proto::IsIpInListResponse { ok })),
-            Err(status) => Err(tonic::Status::new(
-                tonic::Code::Internal,
-                status.to_string(),
-            )),
-        }
+        let ok = self
+            .is_ip_in_white_list(input.ip.clone())
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
+        Ok(tonic::Response::new(proto::IsIpInListResponse { ok }))
     }
 }
 #[tokio::main]
