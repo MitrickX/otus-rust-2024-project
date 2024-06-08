@@ -27,5 +27,8 @@ tonic-build = "0.11.0"
 cucumber = "0.21.0"
 
 [[test]]
-name = "api_test_ip_list"
-harness = false           # allows Cucumber to print output instead of libtest
+name = "integration_test_ip_list"
+
+[[test]]
+name = "behavioral_test_ip"
+harness = false             # allows Cucumber to print output instead of libtest

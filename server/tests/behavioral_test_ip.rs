@@ -135,7 +135,7 @@ async fn check_list_has_ip(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    World::run("tests/api/ip_list/features").await;
+    World::run("tests/api/features").await;
 
     Ok(())
 }
