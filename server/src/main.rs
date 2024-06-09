@@ -16,6 +16,8 @@ mod proto {
         tonic::include_file_descriptor_set!("api_descriptor");
 }
 
+// TODO: cleaning inactive buckets
+
 // TODO: move port to env var
 const ADDR: &str = "[::1]:50051";
 // TODO: move db connections to env var (and use docker compose)

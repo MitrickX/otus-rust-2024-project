@@ -1,5 +1,6 @@
 use cucumber::{given, then, when, World as _};
 use proto::api_client::ApiClient;
+use rand::Rng;
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy)]
@@ -16,6 +17,26 @@ impl FromStr for ListKind {
             "white" => Ok(ListKind::White),
             "black" => Ok(ListKind::Black),
             _ => Err(format!("Unknown list kind: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum CredentialKey {
+    Login,
+    Password,
+    Ip,
+}
+
+impl FromStr for CredentialKey {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "login" => Ok(CredentialKey::Login),
+            "password" => Ok(CredentialKey::Password),
+            "ip" => Ok(CredentialKey::Ip),
+            _ => Err(format!("Unknown credential key: {}", s)),
         }
     }
 }
@@ -89,13 +110,28 @@ async fn given_list_without_ip(_w: &mut World, list_kind: String, ip: String) {
         .unwrap();
 }
 
-#[given(regex = r#"reset rate limter for ip (.+)$"#)]
-async fn reset_rate_limiter_for_ip(w: &mut World, ip: String) {
-    let req = proto::ResetRateLimiterRequest {
-        login: None,
-        password: None,
-        ip: Some(ip.to_string()),
+#[given(regex = r#"reset rate limter for (ip|login|password) (.+)$"#)]
+async fn reset_rate_limiter(w: &mut World, credential_key: String, credential_val: String) {
+    let key = CredentialKey::from_str(&credential_key).unwrap();
+
+    let req = match key {
+        CredentialKey::Ip => proto::ResetRateLimiterRequest {
+            login: None,
+            password: None,
+            ip: Some(credential_val),
+        },
+        CredentialKey::Login => proto::ResetRateLimiterRequest {
+            login: Some(credential_val),
+            password: None,
+            ip: None,
+        },
+        CredentialKey::Password => proto::ResetRateLimiterRequest {
+            login: None,
+            password: Some(credential_val),
+            ip: None,
+        },
     };
+
     let request = tonic::Request::new(req);
 
     let mut client = ApiClient::connect(ADDR).await.unwrap();
@@ -126,11 +162,22 @@ async fn delete_ip_from_list(w: &mut World, ip: String, list_kind: String) {
     ];
 }
 
-#[when(regex = r#"^checking authorization with ip (.+?)(?: (.+) times)?$"#)]
-async fn checking_authorization_with_ip_several_times(w: &mut World, ip: String, how_much: String) {
+#[when(regex = r#"^checking authorization with (ip|login|password) (.+?)(?: (.+) times)?$"#)]
+async fn checking_authorization_several_times(
+    w: &mut World,
+    credential_key: String,
+    credential_val: String,
+    how_much: String,
+) {
+    let credential_key = CredentialKey::from_str(&credential_key).unwrap();
+
     let n = if how_much.trim() == "max allowed" {
         // TODO: parse config and extract limit
-        1000
+        match credential_key {
+            CredentialKey::Ip => 1000,
+            CredentialKey::Login => 10,
+            CredentialKey::Password => 100,
+        }
     } else {
         1
     };
@@ -138,11 +185,12 @@ async fn checking_authorization_with_ip_several_times(w: &mut World, ip: String,
     w.statuses = Vec::<Status>::with_capacity(n);
 
     for _ in 0..n {
-        w.statuses
-            .push(match do_checking_authorization_with_ip(ip.clone()).await {
+        w.statuses.push(
+            match do_checking_authorization(credential_key, credential_val.clone()).await {
                 Ok(result) => Status::Ok(result.get_ref().ok.to_string()),
                 Err(status) => Status::from_grpc(status),
-            });
+            },
+        );
     }
 }
 
@@ -240,14 +288,28 @@ async fn check_list_has_ip(
     }
 }
 
-async fn do_checking_authorization_with_ip(
-    ip: String,
+async fn do_checking_authorization(
+    credential_key: CredentialKey,
+    credential_val: String,
 ) -> Result<tonic::Response<proto::IsAuthAllowedResponse>, tonic::Status> {
-    let req = proto::IsAuthAllowedRequest {
-        login: generate(6),
-        password: generate(8),
-        ip: ip.to_string(),
+    let req = match credential_key {
+        CredentialKey::Ip => proto::IsAuthAllowedRequest {
+            login: generate_string(6),
+            password: generate_string(8),
+            ip: credential_val,
+        },
+        CredentialKey::Login => proto::IsAuthAllowedRequest {
+            login: credential_val,
+            password: generate_string(8),
+            ip: generate_simple_ip(),
+        },
+        CredentialKey::Password => proto::IsAuthAllowedRequest {
+            login: generate_string(6),
+            password: credential_val,
+            ip: generate_simple_ip(),
+        },
     };
+
     let request = tonic::Request::new(req);
 
     let mut client = ApiClient::connect(ADDR).await.unwrap();
@@ -255,9 +317,20 @@ async fn do_checking_authorization_with_ip(
     client.is_auth_allowed(request).await
 }
 
-fn generate(len: usize) -> String {
+fn generate_string(len: usize) -> String {
     let charset = "=+-_*&^%$#@!?abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     random_string::generate(len, charset)
+}
+
+fn generate_simple_ip() -> String {
+    let mut rng = rand::thread_rng();
+    format!(
+        "{}.{}.{}.{}",
+        rng.gen_range(0..=255),
+        rng.gen_range(0..=255),
+        rng.gen_range(0..=255),
+        rng.gen_range(0..=255),
+    )
 }
 
 #[tokio::main]

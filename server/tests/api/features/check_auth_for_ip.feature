@@ -1,4 +1,4 @@
-Feature: Check authorization allowance
+Feature: Check authorization allowance for current ip
 
   @serial
   Scenario: Authorization is not allowed cause ip in black list
