@@ -50,6 +50,13 @@ Feature: Check authorization allowance
     When checking authorization with ip 127.0.0.1
     Then response is Ok(false)
 
-    # different ip, so allowed to authorize anyway
+    When wait for 1 minute
+    And checking authorization with ip 127.0.0.1 max allowed times
+    Then each response is Ok(true)
+
+    When checking authorization with ip 127.0.0.1
+    Then response is Ok(false)
+
+    # different ip, hence allowed to authorize for now
     When checking authorization with ip 128.0.0.1
     Then each response is Ok(true)

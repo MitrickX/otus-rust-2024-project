@@ -146,6 +146,11 @@ async fn checking_authorization_with_ip_several_times(w: &mut World, ip: String,
     }
 }
 
+#[when(regex = r#"^wait for (\d+) minute[s]?$"#)]
+async fn wait_for_minutes(_w: &mut World, minutes: u64) {
+    tokio::time::sleep(tokio::time::Duration::from_secs(minutes * 60)).await;
+}
+
 #[then(regex = r#"^(?:each )?response is Ok\((.*?)\)$"#)]
 async fn is_response_ok(w: &mut World, val: String) {
     let expected = &Status::Ok(val);
