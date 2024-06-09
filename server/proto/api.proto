@@ -35,17 +35,13 @@ message IsIpInListResponse {
 message ClearListRequest {}
 message ClearBucketResponse {}
 
-// message BucketRequest {
-//     string login = 1;
-//     string password = 2;
-//     string ip = 3;
-// }
+message ResetRateLimiterRequest {
+    optional string ip = 1;
+    optional string login = 2;
+    optional string password = 3;
+}
 
-// message BucketCountsResponse {
-//     uint32 login = 1;
-//     uint32 password = 2;
-//     uint32 ip = 3;
-// }
+message ResetRateLimiterResponse {}
 
 service Api {
     rpc AddIpInBlackList (AddIpInListRequest) returns (AddIpInListResponse) {};
@@ -57,13 +53,5 @@ service Api {
     rpc IsAuthAllowed(IsAuthAllowedRequest) returns (IsAuthAllowedResponse) {};
     rpc ClearBlackList(ClearListRequest) returns (ClearBucketResponse) {};
     rpc ClearWhiteList(ClearListRequest) returns (ClearBucketResponse) {};
-
-    // rpc ClearBucket(BucketRequest)      returns (None) {};
-
-    // // For integration tests when need clean lists before run tests
-    // rpc ClearBlackList(None)                returns (None) {};
-    // rpc ClearWhiteList(None)                returns (None) {};
-
-    // // For integration tests get all counts of all type of buckets
-    // rpc CountBuckets(None)               returns (BucketCountsResponse) {};
+    rpc ResetRateLimiter(ResetRateLimiterRequest) returns (ResetRateLimiterResponse) {};
 }

@@ -146,6 +146,18 @@ impl Api for ApiService {
 
         Ok(tonic::Response::new(proto::ClearBucketResponse {}))
     }
+
+    async fn reset_rate_limiter(
+        &self,
+        request: tonic::Request<proto::ResetRateLimiterRequest>,
+    ) -> std::result::Result<tonic::Response<proto::ResetRateLimiterResponse>, tonic::Status> {
+        let input = request.get_ref();
+        if let Some(ip) = input.ip.as_ref() {
+            self.reset_ip_rate_limiter(ip.clone()).await;
+        }
+
+        Ok(tonic::Response::new(proto::ResetRateLimiterResponse {}))
+    }
 }
 
 #[tokio::main]

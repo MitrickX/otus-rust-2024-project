@@ -5,18 +5,19 @@ use self::bucket::Bucket;
 use rate::Rate;
 use std::{
     collections::HashMap,
+    fmt::Debug,
     hash::Hash,
     time::{Duration, SystemTime},
 };
 
 #[derive(Debug)]
-pub struct RateLimit<K: PartialEq + Eq + Hash + Clone> {
+pub struct RateLimit<K: PartialEq + Eq + Hash + Clone + Debug> {
     rate: Rate,
     buckets: HashMap<K, Bucket>,
     active_duration: Duration,
 }
 
-impl<K: PartialEq + Eq + Hash + Clone> RateLimit<K> {
+impl<K: PartialEq + Eq + Hash + Clone + Debug> RateLimit<K> {
     pub fn new(rate: Rate, active_duration: Duration) -> Self {
         Self {
             rate,
@@ -42,6 +43,15 @@ impl<K: PartialEq + Eq + Hash + Clone> RateLimit<K> {
             .or_insert(Bucket::new(self.rate, self.active_duration));
 
         bucket.is_conformed(current_time)
+    }
+
+    /// Delete bucket for key from storage
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - associated with some operation key to check is it allowed to do this operation
+    pub fn reset(&mut self, key: K) {
+        self.buckets.remove(&key);
     }
 
     /// Clear not active buckets from storage

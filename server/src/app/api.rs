@@ -77,6 +77,10 @@ impl Api {
             && self.is_login_conformed(credentials.login).await)
     }
 
+    pub async fn reset_ip_rate_limiter(&self, ip: String) {
+        Arc::clone(&self.rate_limit_ip).lock().await.reset(ip);
+    }
+
     async fn is_login_conformed(&self, login: String) -> bool {
         Arc::clone(&self.rate_limit_login)
             .lock()

@@ -12,6 +12,7 @@ cidr = "=0.2.2"
 postgres = "0.19.7"
 prost = "0.12.6"
 prost-derive = "0.12.6"
+random-string = "1.1.0"
 refinery = { version = "0.8.14", features = ["tokio-postgres"] }
 serde = "1.0.203"
 serde_yml = "0.0.10"
