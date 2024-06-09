@@ -7,8 +7,7 @@ Feature: Check authorization allowance
     When add ip 127.0.0.1 to black list
     And checking authorization with ip 127.0.0.1
 
-    Then response status is ok
-    And authorization is not allowed
+    Then response is Ok(false)
 
   @serial
   Scenario: Authorization is not allowed cause subnet ip in black list
@@ -17,8 +16,7 @@ Feature: Check authorization allowance
     When add ip 128.0.0.0/24 to black list
     And checking authorization with ip 128.0.0.1
 
-    Then response status is ok
-    And authorization is not allowed
+    Then response is Ok(false)
 
   @serial
   Scenario: Authorization is allowed cause ip in white list and not in black list
@@ -28,8 +26,7 @@ Feature: Check authorization allowance
     When add ip 129.0.0.1 to white list
     And checking authorization with ip 129.0.0.1
 
-    Then response status is ok
-    And authorization is allowed
+    Then response is Ok(true)
 
   @serial
   Scenario: Authorization is allowed cause subnet ip in white list and not in black list
@@ -39,23 +36,20 @@ Feature: Check authorization allowance
     When add ip 130.0.0.0/24 to white list
     And checking authorization with ip 130.0.0.1
 
-    Then response status is ok
-    And authorization is allowed
+    Then response is Ok(true)
 
   @serial
-  Scenario: Authorization is allowed cause subnet ip in white list and not in black list
+  Scenario: Authorization attempts hit rate limit by ip
     Given empty black list
     And empty white list
     And reset rate limter for ip 127.0.0.1
 
     When checking authorization with ip 127.0.0.1 max allowed times
-    And checking authorization with ip 127.0.0.1
+    Then each response is Ok(true)
 
-    Then response status is ok
-    And authorization is not allowed
+    When checking authorization with ip 127.0.0.1
+    Then response is Ok(false)
 
-    # different ip, so allowed to authorize
+    # different ip, so allowed to authorize anyway
     When checking authorization with ip 128.0.0.1
-
-    Then response status is ok
-    And authorization is allowed
+    Then each response is Ok(true)

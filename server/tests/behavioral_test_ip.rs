@@ -27,7 +27,7 @@ pub mod proto {
     tonic::include_proto!("api");
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Status {
     Ok(String),
     Error(String),
@@ -35,15 +35,11 @@ enum Status {
 
 impl Default for Status {
     fn default() -> Self {
-        Status::Ok("ok".to_string())
+        Status::Ok("".to_string())
     }
 }
 
 impl Status {
-    pub fn is_ok(&self) -> bool {
-        matches!(*self, Status::Ok(_))
-    }
-
     pub fn from_grpc(status: tonic::Status) -> Self {
         Status::Error(format!("grpc status: {:?}", status))
     }
@@ -62,7 +58,7 @@ impl Status {
 
 #[derive(cucumber::World, Debug, Default)]
 struct World {
-    status: Status,
+    statuses: Vec<Status>,
 }
 
 #[given(regex = r#"^empty (.+) list$"#)]
@@ -104,26 +100,30 @@ async fn reset_rate_limiter_for_ip(w: &mut World, ip: String) {
 
     let mut client = ApiClient::connect(ADDR).await.unwrap();
 
-    w.status = match client.reset_rate_limiter(request).await {
+    w.statuses = vec![match client.reset_rate_limiter(request).await {
         Ok(_) => Status::default(),
         Err(status) => Status::from_grpc(status),
-    }
+    }];
 }
 
 #[when(regex = r#"^add ip (.+) to (.+) list$"#)]
 async fn add_ip_in_list(w: &mut World, ip: String, list_kind: String) {
-    w.status = match do_add_ip_in_list(&ip, ListKind::from_str(&list_kind).unwrap()).await {
-        Ok(_) => Status::default(),
-        Err(status) => Status::from_grpc(status),
-    }
+    w.statuses = vec![
+        match do_add_ip_in_list(&ip, ListKind::from_str(&list_kind).unwrap()).await {
+            Ok(_) => Status::default(),
+            Err(status) => Status::from_grpc(status),
+        },
+    ];
 }
 
 #[when(regex = r#"^delete ip (.+) from (.+) list$"#)]
 async fn delete_ip_from_list(w: &mut World, ip: String, list_kind: String) {
-    w.status = match do_delete_ip_from_list(&ip, ListKind::from_str(&list_kind).unwrap()).await {
-        Ok(_) => Status::default(),
-        Err(status) => Status::from_grpc(status),
-    }
+    w.statuses = vec![
+        match do_delete_ip_from_list(&ip, ListKind::from_str(&list_kind).unwrap()).await {
+            Ok(_) => Status::default(),
+            Err(status) => Status::from_grpc(status),
+        },
+    ];
 }
 
 #[when(regex = r#"^checking authorization with ip (.+?)(?: (.+) times)?$"#)]
@@ -135,19 +135,23 @@ async fn checking_authorization_with_ip_several_times(w: &mut World, ip: String,
         1
     };
 
-    for _ in 0..n - 1 {
-        do_checking_authorization_with_ip(ip.clone()).await.unwrap();
-    }
+    w.statuses = Vec::<Status>::with_capacity(n);
 
-    w.status = match do_checking_authorization_with_ip(ip).await {
-        Ok(result) => Status::Ok(result.get_ref().ok.to_string()),
-        Err(status) => Status::from_grpc(status),
-    };
+    for _ in 0..n {
+        w.statuses
+            .push(match do_checking_authorization_with_ip(ip.clone()).await {
+                Ok(result) => Status::Ok(result.get_ref().ok.to_string()),
+                Err(status) => Status::from_grpc(status),
+            });
+    }
 }
 
-#[then("response status is ok")]
-async fn is_response_ok(w: &mut World) {
-    assert!(w.status.is_ok());
+#[then(regex = r#"^(?:each )?response is Ok\((.*?)\)$"#)]
+async fn is_response_ok(w: &mut World, val: String) {
+    let expected = &Status::Ok(val);
+    w.statuses.iter().enumerate().for_each(|(i, s)| {
+        assert_eq!(expected, s, "unexpected response for #{}", i);
+    });
 }
 
 #[then(regex = r#"^(.+) list has ip (.+)"#)]
@@ -172,12 +176,18 @@ async fn list_has_not_ip(_w: &mut World, list_kind: String, ip: String) {
 
 #[then(regex = "authorization is not allowed")]
 async fn authorization_is_not_allowed(w: &mut World) {
-    w.status.ok_or_panic(|r| assert_eq!(r, "false"));
+    w.statuses
+        .last()
+        .unwrap()
+        .ok_or_panic(|r| assert_eq!(r, "false"));
 }
 
 #[then(regex = "authorization is allowed")]
 async fn authorization_is_allowed(w: &mut World) {
-    w.status.ok_or_panic(|r| assert_eq!(r, "true"));
+    w.statuses
+        .last()
+        .unwrap()
+        .ok_or_panic(|r| assert_eq!(r, "true"));
 }
 
 async fn do_add_ip_in_list(
