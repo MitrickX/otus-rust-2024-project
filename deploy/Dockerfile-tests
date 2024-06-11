@@ -1,0 +1,55 @@
+# Rust as the base image
+FROM rust:1.75.0-slim as builder
+
+# fix rust http openssl bug
+RUN apt-get update \
+    && apt-get install libssl-dev \ 
+    && apt-get install pkg-config -y \ 
+    && apt-get install protobuf-compiler -y
+
+# Create a new empty shell project
+RUN USER=root mkdir -p /server
+WORKDIR /server
+
+# Capture dependencies
+COPY Cargo.toml Cargo.lock ./
+
+# Build and cache the dependencies
+RUN USER=root mkdir src && mkdir tests \
+    && echo "fn main() {}" > src/main.rs \
+    && echo "fn main() {}" > tests/behavioral_test_ip.rs \
+    && echo "fn main() {}" > tests/integration_test_ip_list.rs
+
+RUN cargo test --no-run
+
+RUN rm src/main.rs
+RUN rm tests/behavioral_test_ip.rs
+RUN rm tests/integration_test_ip_list.rs
+
+# Copy the source code
+COPY src ./src
+COPY proto ./proto
+COPY sql ./sql
+COPY tests ./tests
+COPY build.rs ./
+
+# build tests
+RUN cargo test --no-run 3>&1 1>&2 2>&3 | tee build_log
+
+# by building log find tests executives and copy them with excplicit names
+# for example target/debug/deps/server-97575109cffc521c will copy as /server/target/debug/deps/test_server
+RUN cat build_log | grep -E 'src/lib.rs|tests/.*rs' | \
+    awk '{print substr($NF, 2, length($NF) - 2)}' | \
+    awk -F\/ '{split($NF, a, "-"); print "cp " $0 " /server/target/debug/deps/test_" a[1]}' | \
+    exec bash
+
+# The final base image
+FROM debian:12.5-slim
+WORKDIR /server
+
+# Copy from the previous build
+COPY --from=builder /server/sql ./sql
+COPY --from=builder /server/target/debug/deps/test_server .
+COPY --from=builder /server/target/debug/deps/test_behavioral_test_ip .
+COPY --from=builder /server/target/debug/deps/test_integration_test_ip_list .
+COPY --from=builder /server/tests/api/features ./tests/api/features

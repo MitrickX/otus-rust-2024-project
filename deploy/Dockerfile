@@ -13,11 +13,15 @@ WORKDIR /server
 
 # Capture dependencies
 COPY Cargo.toml Cargo.lock ./
-COPY tests ./tests
 
 # Build and cache the dependencies
-RUN USER=root mkdir src && echo "fn main() {}" > src/main.rs
+RUN USER=root mkdir src && mkdir tests \
+    && echo "fn main() {}" > src/main.rs \
+    && echo "fn main() {}" > tests/behavioral_test_ip.rs \
+    && echo "fn main() {}" > tests/integration_test_ip_list.rs
+
 RUN cargo build --release
+
 RUN rm src/main.rs
 
 # Copy the source code
@@ -25,6 +29,7 @@ COPY src ./src
 COPY proto ./proto
 COPY sql ./sql
 COPY build.rs ./
+
 RUN cargo build --release
 
 # The final base image
