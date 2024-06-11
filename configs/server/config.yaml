@@ -1,18 +1,12 @@
-# limits in minutes for each login/password/ip
+# limits are max attempts per minute for each login/password/ip
 limits:
   login: 10
   password: 100
   ip: 1000
 
 timeouts:
+  # how long in seconds rate limit bucket must not be touched until marked as inactive
   bucket_active_secs: 180
-
-db:
-  host: 127.0.0.1
-  port: 5432
-  name: auth
-  user: otus
-  password: 1234
 
 # logger:
 #   level: "debug"

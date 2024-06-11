@@ -1,12 +1,17 @@
-.PHONY: server-run server-stop server-restart server-tests
+.PHONY: start stop restart tests
 
-server-run:
+start:
 	docker-compose -f ./server/deploy/docker-compose.yaml up -d --build
 
-server-stop:
+stop:
 	docker-compose -f ./server/deploy/docker-compose.yaml down
 
-server-restart: stop run
+restart: start stop
 
-server-tests: 
+# run all tests (unit, integration, end-to-end) in docker
+tests: 
 	@echo 'not implemented yet'
+
+# run only unit tests locallly
+unit-tests:
+	@cargo test --lib

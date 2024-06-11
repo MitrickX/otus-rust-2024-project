@@ -1,37 +1,17 @@
 use cidr::IpCidr;
-use serde::{Deserialize, Serialize};
-use serde_yml;
 use server::app::{
-    config::Db,
+    config::DbConfig,
     connection::connect,
     ip_list::{ip::Ip, list::List},
     migrations::run_app_migrations,
 };
-use std::{path::Path, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 use tokio::sync::Mutex;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Config {
-    pub db: Db,
-}
+async fn setup(list_kind: &str) -> DbConfig {
+    let db_config = DbConfig::from_env();
 
-const CONFIG_PATH: &str = "../configs/tests/config.yaml";
-
-impl Config {
-    pub fn parse(file_path: &Path) -> Result<Self, Box<serde_yml::Error>> {
-        let content = std::fs::read_to_string(file_path).unwrap();
-        let config: Config = serde_yml::from_str(&content)?;
-        Ok(config)
-    }
-}
-
-async fn setup(list_kind: &str) -> Config {
-    let mut path = std::env::current_dir().unwrap();
-    path.push(CONFIG_PATH);
-
-    let config = Config::parse(path.as_path()).unwrap();
-
-    let (mut client, connection) = connect(&config.db).await;
+    let (mut client, connection) = connect(&db_config).await;
 
     // The connection object performs the actual communication with the database,
     // so spawn it off to run on its own.
@@ -47,16 +27,16 @@ async fn setup(list_kind: &str) -> Config {
         .await
         .unwrap();
 
-    config
+    db_config
 }
 
 #[tokio::test]
 async fn test_ip_list_simple_crud() {
     let list_kind = "test_ip_list_simple_crud";
 
-    let config = setup(&list_kind).await;
+    let db_config = setup(&list_kind).await;
 
-    let (client, connection) = connect(&config.db).await;
+    let (client, connection) = connect(&db_config).await;
 
     // The connection object performs the actual communication with the database,
     // so spawn it off to run on its own.
@@ -171,9 +151,9 @@ async fn test_ip_list_simple_crud() {
 #[tokio::test]
 async fn test_conform_ip_v4() {
     let list_kind = "test_conform_ip_v4";
-    let config = setup(list_kind).await;
+    let db_config = setup(list_kind).await;
 
-    let (client, connection) = connect(&config.db).await;
+    let (client, connection) = connect(&db_config).await;
 
     // The connection object performs the actual communication with the database,
     // so spawn it off to run on its own.
@@ -227,9 +207,9 @@ async fn test_conform_ip_v4() {
 #[tokio::test]
 async fn test_conform_ip_v6() {
     let list_kind = "test_conform_ip_v6";
-    let config = setup(list_kind).await;
+    let db_config = setup(list_kind).await;
 
-    let (client, connection) = connect(&config.db).await;
+    let (client, connection) = connect(&db_config).await;
 
     // The connection object performs the actual communication with the database,
     // so spawn it off to run on its own.

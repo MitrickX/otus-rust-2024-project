@@ -1,7 +1,7 @@
 version: '3'
 services:
 
-  postgres:
+  db:
     image: postgres
     environment:
       - POSTGRES_USER=otus
@@ -14,13 +14,13 @@ services:
     build:
       context: ../
       dockerfile: ./deploy/Dockerfile
-    command: /server/server --addr 0.0.0.0:50051 --config-path configs/server.yaml
+    command: /server/server --addr 0.0.0.0:50051 --config-path configs/server/config.yaml
     volumes:
-      - ../configs:/server/configs
+      - ../../configs:/server/configs
     ports:
       - 50051:50051
     environment:
-      - DB_HOST=postgres
+      - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=auth
       - DB_USER=otus
@@ -28,4 +28,4 @@ services:
       - DB_CONNECTION_RETRIES=20
       - DB_CONNECTION_TIMEOUT=10
     depends_on:
-      - postgres
+      - db
