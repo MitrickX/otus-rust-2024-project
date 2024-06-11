@@ -11,10 +11,20 @@ RUN apt-get update \
 RUN USER=root mkdir -p /server
 WORKDIR /server
 
-# Copy all directories and files
-COPY . .
+# Capture dependencies
+COPY Cargo.toml Cargo.lock ./
+COPY tests ./tests
 
-# Build the project
+# Build and cache the dependencies
+RUN USER=root mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build --release
+RUN rm src/main.rs
+
+# Copy the source code
+COPY src ./src
+COPY proto ./proto
+COPY sql ./sql
+COPY build.rs ./
 RUN cargo build --release
 
 # The final base image

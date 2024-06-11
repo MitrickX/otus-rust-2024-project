@@ -1,12 +1,12 @@
 .PHONY: start stop restart tests
 
 start:
-	docker-compose -f ./server/deploy/docker-compose.yaml up -d --build
+	docker-compose -f ./deploy/docker-compose.yaml up -d --build
 
 stop:
-	docker-compose -f ./server/deploy/docker-compose.yaml down
+	docker-compose -f ./deploy/docker-compose.yaml down
 
-restart: start stop
+restart: stop start
 
 # run all tests (unit, integration, end-to-end) in docker
 tests: 

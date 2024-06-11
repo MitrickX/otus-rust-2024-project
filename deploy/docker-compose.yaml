@@ -16,7 +16,7 @@ services:
       dockerfile: ./deploy/Dockerfile
     command: /server/server --addr 0.0.0.0:50051 --config-path configs/server/config.yaml
     volumes:
-      - ../../configs:/server/configs
+      - ../configs:/server/configs
     ports:
       - 50051:50051
     environment:
