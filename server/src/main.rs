@@ -1,11 +1,12 @@
+use clap::Parser;
 use proto::api_server::{Api, ApiServer};
 use server::app::{
     api::{Api as ApiService, ApiError, Credentials},
-    config::Config,
+    config::{Config, DbConfig},
     connection::connect,
     migrations::run_app_migrations,
 };
-use std::{error::Error, sync::Arc};
+use std::{error::Error, path::Path, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::transport::Server;
 
@@ -16,12 +17,24 @@ mod proto {
         tonic::include_file_descriptor_set!("api_descriptor");
 }
 
-// TODO: cleaning inactive buckets
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(
+        long,
+        value_name = "ADDR:PORT",
+        help = "server ip address with port e.g. 127.0.0.1:50051"
+    )]
+    addr: String,
 
-// TODO: move port to env var
-const ADDR: &str = "[::1]:50051";
-// TODO: move db connections to env var (and use docker compose)
-const CONFIG_PATH: &str = "./configs/server/config.yaml";
+    #[arg(
+        long,
+        help = "path to file for configuration application server (limits and etc)"
+    )]
+    config_path: String,
+}
+
+// TODO: cleaning inactive buckets
 
 fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
     match err {
@@ -164,17 +177,23 @@ impl Api for ApiService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let addr = ADDR.parse()?;
+    let args = Args::parse();
+    println!("Args: {:?}", args);
 
-    let mut path = std::env::current_dir()?;
-    path.push(CONFIG_PATH);
+    let addr = args.addr.parse().unwrap();
 
+    println!("Addr: {:?}", addr);
+
+    let path = Path::new(&args.config_path);
     println!("Path: {:?}", path);
 
-    let config = Config::parse(path.as_path()).unwrap();
+    let config = Config::parse(path);
     println!("Config: {:?}", config);
 
-    let (mut client, connection) = connect(&config.db).await;
+    let db_config = DbConfig::from_env();
+    println!("DbConfig: {:?}", db_config);
+
+    let (mut client, connection) = connect(&db_config).await;
 
     // The connection object performs the actual communication with the database,
     // so spawn it off to run on its own.

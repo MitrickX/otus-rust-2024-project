@@ -1,0 +1,31 @@
+version: '3'
+services:
+
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_USER=otus
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=auth
+    ports:
+      - 5432
+
+  server:
+    build:
+      context: ../
+      dockerfile: ./deploy/Dockerfile
+    command: /server/server --addr 0.0.0.0:50051 --config-path configs/server.yaml
+    volumes:
+      - ../configs:/server/configs
+    ports:
+      - 50051:50051
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=auth
+      - DB_USER=otus
+      - DB_PASSWORD=1234
+      - DB_CONNECTION_RETRIES=20
+      - DB_CONNECTION_TIMEOUT=10
+    depends_on:
+      - postgres
