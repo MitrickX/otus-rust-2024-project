@@ -6,38 +6,40 @@ use server::app::{
     migrations::run_app_migrations,
 };
 use std::{str::FromStr, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OnceCell};
 
-async fn setup(list_kind: &str) -> DbConfig {
-    let db_config = DbConfig::from_env();
+static ONCE_RUN_MIGRATIONS: OnceCell<()> = OnceCell::const_new();
 
-    println!("db_config: {:?}", db_config);
+async fn once_run_migrations() {
+    ONCE_RUN_MIGRATIONS
+        .get_or_init(|| async {
+            let db_config = DbConfig::from_env();
+            let (mut client, connection) = connect(&db_config).await;
 
-    let (mut client, connection) = connect(&db_config).await;
+            // The connection object performs the actual communication with the database,
+            // so spawn it off to run on its own.
+            tokio::spawn(async move {
+                connection.await.unwrap();
+            });
 
-    // The connection object performs the actual communication with the database,
-    // so spawn it off to run on its own.
-    tokio::spawn(async move {
-        connection.await.unwrap();
-    });
+            run_app_migrations(&mut client).await;
+        })
+        .await;
+}
 
-    run_app_migrations(&mut client).await;
-
+async fn clear_ip_list(client: &tokio_postgres::Client, list_kind: &str) {
     // clear all records for new test
     client
         .execute(r#"DELETE FROM ip_list WHERE kind = $1"#, &[&list_kind])
         .await
         .unwrap();
-
-    db_config
 }
 
 #[tokio::test]
 async fn test_ip_list_simple_crud() {
-    let list_kind = "test_ip_list_simple_crud";
+    once_run_migrations().await;
 
-    let db_config = setup(&list_kind).await;
-
+    let db_config = DbConfig::from_env();
     let (client, connection) = connect(&db_config).await;
 
     // The connection object performs the actual communication with the database,
@@ -45,6 +47,9 @@ async fn test_ip_list_simple_crud() {
     tokio::spawn(async move {
         connection.await.unwrap();
     });
+
+    let list_kind = "test_ip_list_simple_crud";
+    clear_ip_list(&client, list_kind).await;
 
     let client = Arc::new(Mutex::new(client));
     let list = List::new(Arc::clone(&client), &list_kind);
@@ -150,229 +155,233 @@ async fn test_ip_list_simple_crud() {
     );
 }
 
-// TODO: repair parallel tests
+#[tokio::test]
+async fn test_conform_ip_v4() {
+    once_run_migrations().await;
 
-// #[tokio::test]
-// async fn test_conform_ip_v4() {
-//     let list_kind = "test_conform_ip_v4";
-//     let db_config = setup(list_kind).await;
+    let db_config = DbConfig::from_env();
+    let (client, connection) = connect(&db_config).await;
 
-//     let (client, connection) = connect(&db_config).await;
+    // The connection object performs the actual communication with the database,
+    // so spawn it off to run on its own.
+    tokio::spawn(async move {
+        connection.await.unwrap();
+    });
 
-//     // The connection object performs the actual communication with the database,
-//     // so spawn it off to run on its own.
-//     tokio::spawn(async move {
-//         connection.await.unwrap();
-//     });
+    let list_kind = "test_conform_ip_v4";
+    clear_ip_list(&client, list_kind).await;
 
-//     let client = Arc::new(Mutex::new(client));
-//     let list = List::new(Arc::clone(&client), &list_kind);
+    let client = Arc::new(Mutex::new(client));
+    let list = List::new(Arc::clone(&client), &list_kind);
 
-//     let ip_str = "192.168.56.0/24";
-//     list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
+    let ip_str = "192.168.56.0/24";
+    list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
 
-//     for ip_in_network in IpCidr::from_str(ip_str).unwrap().into_iter() {
-//         let ip_addr = ip_in_network.address();
-//         assert!(
-//             list.is_conform(&Ip::from_str(&ip_addr.to_string()).unwrap())
-//                 .await
-//                 .unwrap(),
-//             "should be conform because list has 192.168.56.0/24 network"
-//         );
-//     }
+    for ip_in_network in IpCidr::from_str(ip_str).unwrap().into_iter() {
+        let ip_addr = ip_in_network.address();
+        assert!(
+            list.is_conform(&Ip::from_str(&ip_addr.to_string()).unwrap())
+                .await
+                .unwrap(),
+            "should be conform because list has 192.168.56.0/24 network"
+        );
+    }
 
-//     let ip_net_str = "192.168.33.0/24";
-//     let ip_str = "192.168.33.124";
+    let ip_net_str = "192.168.33.0/24";
+    let ip_str = "192.168.33.124";
 
-//     list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
+    list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
 
-//     for ip_in_network in IpCidr::from_str(ip_net_str).unwrap().into_iter() {
-//         let ip_addr = ip_in_network.address();
-//         let ip_addr_str = ip_addr.to_string();
-//         if ip_addr_str != ip_str {
-//             assert!(
-//                 !list
-//                     .is_conform(&Ip::from_str(&ip_addr_str).unwrap())
-//                     .await
-//                     .unwrap(),
-//                 "should NOT be conform because list has NOT 192.168.33.0/24 network"
-//             );
-//         } else {
-//             assert!(
-//                 list.is_conform(&Ip::from_str("192.168.33.124").unwrap())
-//                     .await
-//                     .unwrap(),
-//                 "conform because has 192.168.55.124"
-//             );
-//         }
-//     }
-// }
+    for ip_in_network in IpCidr::from_str(ip_net_str).unwrap().into_iter() {
+        let ip_addr = ip_in_network.address();
+        let ip_addr_str = ip_addr.to_string();
+        if ip_addr_str != ip_str {
+            assert!(
+                !list
+                    .is_conform(&Ip::from_str(&ip_addr_str).unwrap())
+                    .await
+                    .unwrap(),
+                "should NOT be conform because list has NOT 192.168.33.0/24 network"
+            );
+        } else {
+            assert!(
+                list.is_conform(&Ip::from_str("192.168.33.124").unwrap())
+                    .await
+                    .unwrap(),
+                "conform because has 192.168.55.124"
+            );
+        }
+    }
+}
 
-// #[tokio::test]
-// async fn test_conform_ip_v6() {
-//     let list_kind = "test_conform_ip_v6";
-//     let db_config = setup(list_kind).await;
+#[tokio::test]
+async fn test_conform_ip_v6() {
+    once_run_migrations().await;
 
-//     let (client, connection) = connect(&db_config).await;
+    let db_config = DbConfig::from_env();
+    let (client, connection) = connect(&db_config).await;
 
-//     // The connection object performs the actual communication with the database,
-//     // so spawn it off to run on its own.
-//     tokio::spawn(async move {
-//         connection.await.unwrap();
-//     });
+    // The connection object performs the actual communication with the database,
+    // so spawn it off to run on its own.
+    tokio::spawn(async move {
+        connection.await.unwrap();
+    });
 
-//     let client = Arc::new(Mutex::new(client));
-//     let list = List::new(Arc::clone(&client), &list_kind);
+    let list_kind = "test_conform_ip_v6";
+    clear_ip_list(&client, list_kind).await;
 
-//     let ip_str = "2001:1111:2222:3333::/64";
-//     list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
+    let client = Arc::new(Mutex::new(client));
+    let list = List::new(Arc::clone(&client), &list_kind);
 
-//     // positive cases
+    let ip_str = "2001:1111:2222:3333::/64";
+    list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333::").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    // positive cases
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333::1").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333::").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333::ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333::1").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:1234:ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333::ffff").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:1234:1").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:1234:ffff").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:0001:ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:1234:1").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333::").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:0001:ffff").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333::1").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333::").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333::ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333::1").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:1234:ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333::ffff").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:1234:1").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:1234:ffff").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:0001:ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has 2001:1111:2222:3333::/64 network"
-//     );
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:1234:1").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     // negative cases
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:3333:ffff:ffff:0001:ffff").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has 2001:1111:2222:3333::/64 network"
+    );
 
-//     assert!(
-//         !list
-//             .is_conform(&Ip::from_str("2001:1111:2222:ffcc::").unwrap())
-//             .await
-//             .unwrap(),
-//         "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
-//     );
+    // negative cases
 
-//     assert!(
-//         !list
-//             .is_conform(&Ip::from_str("2001:1111:2222:ffcc::1").unwrap())
-//             .await
-//             .unwrap(),
-//         "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
-//     );
+    assert!(
+        !list
+            .is_conform(&Ip::from_str("2001:1111:2222:ffcc::").unwrap())
+            .await
+            .unwrap(),
+        "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
+    );
 
-//     assert!(
-//         !list
-//             .is_conform(&Ip::from_str("2001:1111:2222:ffcc::ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
-//     );
+    assert!(
+        !list
+            .is_conform(&Ip::from_str("2001:1111:2222:ffcc::1").unwrap())
+            .await
+            .unwrap(),
+        "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
+    );
 
-//     assert!(
-//         !list
-//             .is_conform(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:1234:ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
-//     );
+    assert!(
+        !list
+            .is_conform(&Ip::from_str("2001:1111:2222:ffcc::ffff").unwrap())
+            .await
+            .unwrap(),
+        "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
+    );
 
-//     assert!(
-//         !list
-//             .is_conform(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:1234:1").unwrap())
-//             .await
-//             .unwrap(),
-//         "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
-//     );
+    assert!(
+        !list
+            .is_conform(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:1234:ffff").unwrap())
+            .await
+            .unwrap(),
+        "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
+    );
 
-//     // one more positive case
+    assert!(
+        !list
+            .is_conform(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:1234:1").unwrap())
+            .await
+            .unwrap(),
+        "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
+    );
 
-//     assert!(
-//         !list
-//             .is_conform(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:0001:ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
-//     );
+    // one more positive case
 
-//     list.add(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:0001:ffff").unwrap())
-//         .await
-//         .unwrap();
+    assert!(
+        !list
+            .is_conform(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:0001:ffff").unwrap())
+            .await
+            .unwrap(),
+        "should not be conform because list has not 2001:1111:2222:ffcc::/64 network or this ip"
+    );
 
-//     assert!(
-//         list.is_conform(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:0001:ffff").unwrap())
-//             .await
-//             .unwrap(),
-//         "should be conform because list has exactly this ip"
-//     );
-// }
+    list.add(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:0001:ffff").unwrap())
+        .await
+        .unwrap();
+
+    assert!(
+        list.is_conform(&Ip::from_str("2001:1111:2222:ffcc:ffff:ffff:0001:ffff").unwrap())
+            .await
+            .unwrap(),
+        "should be conform because list has exactly this ip"
+    );
+}
