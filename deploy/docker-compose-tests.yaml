@@ -34,7 +34,6 @@ services:
     build:
       context: ../
       dockerfile: ./deploy/Dockerfile-tests
-    command: /server/test_behavioral_test_ip
     volumes:
       - ../configs:/server/configs
     environment:
