@@ -185,6 +185,8 @@ impl Api for ApiService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
+
     let args = Args::parse();
     info!("Args: {:?}", args);
 

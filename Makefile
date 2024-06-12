@@ -1,10 +1,10 @@
 .PHONY: start stop restart tests
 
 start:
-	docker-compose -f ./deploy/docker-compose.yaml up -d --build
+	@docker-compose -f ./deploy/docker-compose.yaml up --build
 
 stop:
-	docker-compose -f ./deploy/docker-compose.yaml down
+	@docker-compose -f ./deploy/docker-compose.yaml down
 
 restart: stop start
 
