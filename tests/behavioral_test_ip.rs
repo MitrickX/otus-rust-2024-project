@@ -1,4 +1,5 @@
 use cucumber::{given, then, when, World as _};
+use log::warn;
 use proto::api_client::ApiClient;
 use rand::Rng;
 use std::{env, str::FromStr};
@@ -72,16 +73,16 @@ async fn health_check() {
                         {
                             Ok(_) => break,
                             Err(e) => {
-                                println!("Failed to connect to api server {}", e);
+                                warn!("Failed to connect to api server {}", e);
                             }
                         }
                     }
                     Err(e) => {
-                        println!("Failed to health check api server {}", e);
+                        warn!("Failed to health check api server {}", e);
                     }
                 };
 
-                println!("Will retry #{} in {} seconds...", i + 1, connection_timeout);
+                warn!("Will retry #{} in {} seconds...", i + 1, connection_timeout);
                 tokio::time::sleep(std::time::Duration::from_secs(connection_timeout)).await
             }
 

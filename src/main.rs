@@ -1,4 +1,5 @@
 use clap::Parser;
+use log::info;
 use proto::api_server::{Api, ApiServer};
 use server::app::{
     api::{Api as ApiService, ApiError, Credentials},
@@ -185,20 +186,16 @@ impl Api for ApiService {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    println!("Args: {:?}", args);
+    info!("Args: {:?}", args);
 
     let addr = args.addr.parse().unwrap();
-
-    println!("Addr: {:?}", addr);
-
     let path = Path::new(&args.config_path);
-    println!("Path: {:?}", path);
 
     let config = Config::parse(path);
-    println!("Config: {:?}", config);
+    info!("Config: {:?}", config);
 
     let db_config = DbConfig::from_env();
-    println!("DbConfig: {:?}", db_config);
+    info!("DbConfig: {:?}", db_config);
 
     let (mut client, connection) = connect(&db_config).await;
 

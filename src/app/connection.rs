@@ -1,4 +1,5 @@
 use super::config::DbConfig;
+use log::warn;
 use postgres::{tls::NoTlsStream, Socket};
 use tokio::time::{sleep, Duration};
 use tokio_postgres::NoTls;
@@ -15,8 +16,8 @@ pub async fn connect(
                 return (client, connection);
             }
             Err(e) => {
-                println!("Failed to connect to database {}", e);
-                println!(
+                warn!("Failed to connect to database {}", e);
+                warn!(
                     "Will retry #{} in {} seconds...",
                     i + 1,
                     config.connection_timeout

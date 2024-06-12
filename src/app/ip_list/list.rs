@@ -20,7 +20,6 @@ impl List {
     }
 
     pub async fn has(&self, ip: &Ip) -> Result<bool> {
-        // println!("Has {:?}", ip);
         let row = match ip.network_length() {
             Some(network_length) => {
                 Arc::clone(&self.client)
@@ -58,7 +57,6 @@ SELECT EXISTS(
     }
 
     pub async fn add(&self, ip: &Ip) -> Result<()> {
-        // println!("Add ip {:?} to {} list", ip, self.kind);
         Arc::clone(&self.client)
             .lock()
             .await
@@ -82,7 +80,6 @@ SELECT EXISTS(
     }
 
     pub async fn clear(&self) -> Result<()> {
-        // println!("Clear {} list", self.kind);
         Arc::clone(&self.client)
             .lock()
             .await
@@ -93,7 +90,6 @@ SELECT EXISTS(
     }
 
     pub async fn delete(&self, ip: &Ip) -> Result<()> {
-        // println!("Delete ip {:?} from {} list", ip, self.kind);
         match ip.network_length() {
             Some(network_length) => {
                 Arc::clone(&self.client)
@@ -125,7 +121,6 @@ WHERE kind = $1 AND ip = $2"#,
     }
 
     pub async fn is_conform(&self, ip: &Ip) -> Result<bool> {
-        // println!("Is conform {:?} in {} list", ip, self.kind);
         let row = Arc::clone(&self.client)
             .lock()
             .await
