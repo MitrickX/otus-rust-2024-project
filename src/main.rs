@@ -173,6 +173,13 @@ impl Api for ApiService {
 
         Ok(tonic::Response::new(proto::ResetRateLimiterResponse {}))
     }
+
+    async fn health_check(
+        &self,
+        _request: tonic::Request<proto::HealthCheckRequest>,
+    ) -> std::result::Result<tonic::Response<proto::HealthCheckResponse>, tonic::Status> {
+        Ok(tonic::Response::new(proto::HealthCheckResponse {}))
+    }
 }
 
 #[tokio::main]

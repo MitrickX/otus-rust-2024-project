@@ -1,7 +1,8 @@
 use cucumber::{given, then, when, World as _};
 use proto::api_client::ApiClient;
 use rand::Rng;
-use std::str::FromStr;
+use std::{env, str::FromStr};
+use tokio::sync::OnceCell;
 
 #[derive(Debug, Clone, Copy)]
 enum ListKind {
@@ -41,11 +42,62 @@ impl FromStr for CredentialKey {
     }
 }
 
-// TODO: move port to env var
-const ADDR: &str = "http://[::1]:50051";
-
 pub mod proto {
     tonic::include_proto!("api");
+}
+
+static HEALTH_CHECK: OnceCell<()> = OnceCell::const_new();
+
+async fn health_check() {
+    HEALTH_CHECK
+        .get_or_init(|| async {
+            let connection_retries = env::var("API_CONNECTION_RETRIES")
+                .unwrap_or("10".to_owned())
+                .parse::<u64>()
+                .unwrap();
+            let connection_timeout = env::var("API_CONNECTION_TIMEOUT")
+                .unwrap_or("10".to_owned())
+                .parse::<u64>()
+                .unwrap();
+
+            let api_server_url =
+                env::var("API_SERVER_URL").unwrap_or("http://[::1]:50051".to_owned());
+
+            for i in 0..connection_retries {
+                match ApiClient::connect(api_server_url.clone()).await {
+                    Ok(mut client) => {
+                        match client
+                            .health_check(tonic::Request::new(proto::HealthCheckRequest {}))
+                            .await
+                        {
+                            Ok(_) => break,
+                            Err(e) => {
+                                println!("Failed to connect to api server {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("Failed to health check api server {}", e);
+                    }
+                };
+
+                println!("Will retry #{} in {} seconds...", i + 1, connection_timeout);
+                tokio::time::sleep(std::time::Duration::from_secs(connection_timeout)).await
+            }
+
+            let mut client = ApiClient::connect(api_server_url.clone()).await.unwrap();
+            client
+                .health_check(tonic::Request::new(proto::HealthCheckRequest {}))
+                .await
+                .unwrap();
+        })
+        .await;
+}
+
+async fn api_server_connect() -> ApiClient<tonic::transport::Channel> {
+    health_check().await;
+    let api_server_url = env::var("API_SERVER_URL").unwrap_or("http://[::1]:50051".to_owned());
+    ApiClient::connect(api_server_url).await.unwrap()
 }
 
 #[derive(Debug, PartialEq)]
@@ -87,7 +139,7 @@ async fn empty_list(_w: &mut World, list_kind: String) {
     let req = proto::ClearListRequest {};
     let request = tonic::Request::new(req);
 
-    let mut client = ApiClient::connect(ADDR).await.unwrap();
+    let mut client = api_server_connect().await;
 
     match ListKind::from_str(&list_kind).unwrap() {
         ListKind::White => client.clear_white_list(request).await,
@@ -134,7 +186,7 @@ async fn reset_rate_limiter(w: &mut World, credential_key: String, credential_va
 
     let request = tonic::Request::new(req);
 
-    let mut client = ApiClient::connect(ADDR).await.unwrap();
+    let mut client = api_server_connect().await;
 
     w.statuses = vec![match client.reset_rate_limiter(request).await {
         Ok(_) => Status::default(),
@@ -250,7 +302,7 @@ async fn do_add_ip_in_list(
     let req = proto::AddIpInListRequest { ip: ip.to_string() };
     let request = tonic::Request::new(req);
 
-    let mut client = ApiClient::connect(ADDR).await.unwrap();
+    let mut client = api_server_connect().await;
 
     match list_kind {
         ListKind::White => client.add_ip_in_white_list(request).await,
@@ -265,7 +317,7 @@ async fn do_delete_ip_from_list(
     let req = proto::DeleteIpFromListRequest { ip: ip.to_string() };
     let request = tonic::Request::new(req);
 
-    let mut client = ApiClient::connect(ADDR).await.unwrap();
+    let mut client = api_server_connect().await;
 
     match list_kind {
         ListKind::White => client.delete_ip_from_white_list(request).await,
@@ -277,7 +329,7 @@ async fn check_list_has_ip(
     list_kind: ListKind,
     ip: String,
 ) -> Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
-    let mut client = ApiClient::connect(ADDR).await.unwrap();
+    let mut client = api_server_connect().await;
 
     let req = proto::IsIpInListRequest { ip: ip.to_string() };
     let request = tonic::Request::new(req);
@@ -312,7 +364,7 @@ async fn do_checking_authorization(
 
     let request = tonic::Request::new(req);
 
-    let mut client = ApiClient::connect(ADDR).await.unwrap();
+    let mut client = api_server_connect().await;
 
     client.is_auth_allowed(request).await
 }

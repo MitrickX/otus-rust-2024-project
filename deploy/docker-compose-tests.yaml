@@ -10,32 +10,16 @@ services:
     ports:
       - 5432
 
-  # server:
-  #   build:
-  #     context: ../
-  #     dockerfile: ./deploy/Dockerfile
-  #   command: /server/server --addr 0.0.0.0:50052 --config-path configs/server/config.yaml
-  #   volumes:
-  #     - ../configs:/server/configs
-  #   environment:
-  #     - DB_HOST=db
-  #     - DB_PORT=5432
-  #     - DB_NAME=auth
-  #     - DB_USER=otus
-  #     - DB_PASSWORD=1234
-  #     - DB_CONNECTION_RETRIES=20
-  #     - DB_CONNECTION_TIMEOUT=10
-  #   depends_on:
-  #     - db
-
-  tests:
+  server:
     build:
       context: ../
-      dockerfile: ./deploy/Dockerfile-tests
+      dockerfile: ./deploy/Dockerfile
+    command: /server/server --addr 0.0.0.0:50052 --config-path configs/server/config.yaml
     volumes:
       - ../configs:/server/configs
+    ports:
+      - 50052:50052
     environment:
-      - RUST_BACKTRACE=1
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=auth_test
@@ -45,3 +29,25 @@ services:
       - DB_CONNECTION_TIMEOUT=10
     depends_on:
       - db
+
+  tests:
+    build:
+      context: ../
+      dockerfile: ./deploy/Dockerfile-tests
+    command: /server/test_behavioral_test_ip
+    volumes:
+      - ../configs:/server/configs
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=auth_test
+      - DB_USER=otus
+      - DB_PASSWORD=1234
+      - DB_CONNECTION_RETRIES=20
+      - DB_CONNECTION_TIMEOUT=10
+      - API_SERVER_URL=http://server:50052
+      - API_CONNECTION_RETRIES=20
+      - API_CONNECTION_TIMEOUT=10
+    depends_on:
+      - db
+      - server
