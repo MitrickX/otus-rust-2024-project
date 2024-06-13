@@ -27,6 +27,6 @@ services:
       - DB_PASSWORD=1234
       - DB_CONNECTION_RETRIES=20
       - DB_CONNECTION_TIMEOUT=10
-      - RUST_LOG=debug
+      - RUST_LOG=info
     depends_on:
       - db

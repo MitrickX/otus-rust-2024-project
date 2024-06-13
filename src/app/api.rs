@@ -10,7 +10,7 @@ use crate::app::config::Config;
 use super::ip_list::ip::ParseError;
 
 type Result<T> = std::result::Result<T, ApiError>;
-type Client = Arc<Mutex<tokio_postgres::Client>>;
+type Client = Arc<tokio_postgres::Client>;
 
 pub struct Credentials {
     pub login: String,

@@ -27,6 +27,7 @@ services:
       - DB_PASSWORD=1234
       - DB_CONNECTION_RETRIES=20
       - DB_CONNECTION_TIMEOUT=10
+      - RUST_LOG=info
     depends_on:
       - db
 
@@ -47,6 +48,7 @@ services:
       - API_SERVER_URL=http://server:50052
       - API_CONNECTION_RETRIES=20
       - API_CONNECTION_TIMEOUT=10
+      - RUST_LOG=info
     depends_on:
       - db
       - server

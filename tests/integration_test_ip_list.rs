@@ -51,7 +51,7 @@ async fn test_ip_list_simple_crud() {
     let list_kind = "test_ip_list_simple_crud";
     clear_ip_list(&client, list_kind).await;
 
-    let client = Arc::new(Mutex::new(client));
+    let client = Arc::new(client);
     let list = List::new(Arc::clone(&client), &list_kind);
     let ip_v4_with_mask = Ip::from_str("192.168.56.0/24").unwrap();
     let ip_v4_without_mask = Ip::from_str("192.168.56.1").unwrap();
@@ -71,8 +71,6 @@ async fn test_ip_list_simple_crud() {
 
     // total count is 4 records
     let result = Arc::clone(&client)
-        .lock()
-        .await
         .query_one(
             r#"SELECT COUNT(*) as count FROM ip_list WHERE kind = $1"#,
             &[&list_kind],
@@ -139,8 +137,6 @@ async fn test_ip_list_simple_crud() {
 
     // total count is 4 records
     let result = Arc::clone(&client)
-        .lock()
-        .await
         .query_one(
             r#"SELECT COUNT(*) as count FROM ip_list WHERE kind = $1"#,
             &[&list_kind],
@@ -171,7 +167,7 @@ async fn test_conform_ip_v4() {
     let list_kind = "test_conform_ip_v4";
     clear_ip_list(&client, list_kind).await;
 
-    let client = Arc::new(Mutex::new(client));
+    let client = Arc::new(client);
     let list = List::new(Arc::clone(&client), &list_kind);
 
     let ip_str = "192.168.56.0/24";
@@ -230,7 +226,7 @@ async fn test_conform_ip_v6() {
     let list_kind = "test_conform_ip_v6";
     clear_ip_list(&client, list_kind).await;
 
-    let client = Arc::new(Mutex::new(client));
+    let client = Arc::new(client);
     let list = List::new(Arc::clone(&client), &list_kind);
 
     let ip_str = "2001:1111:2222:3333::/64";

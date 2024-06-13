@@ -8,7 +8,6 @@ use server::app::{
     migrations::run_app_migrations,
 };
 use std::{error::Error, path::Path, sync::Arc};
-use tokio::sync::Mutex;
 use tonic::transport::Server;
 
 mod proto {
@@ -209,7 +208,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     run_app_migrations(&mut client).await;
 
-    let auth = ApiService::new(&config, Arc::new(Mutex::new(client)));
+    let auth = ApiService::new(&config, Arc::new(client));
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
