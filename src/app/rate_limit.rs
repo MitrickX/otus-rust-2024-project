@@ -15,6 +15,7 @@ pub struct RateLimit<K: PartialEq + Eq + Hash + Clone + Debug> {
     rate: Rate,
     buckets: HashMap<K, Bucket>,
     active_duration: Duration,
+    last_clear_time: SystemTime,
 }
 
 impl<K: PartialEq + Eq + Hash + Clone + Debug> RateLimit<K> {
@@ -23,6 +24,7 @@ impl<K: PartialEq + Eq + Hash + Clone + Debug> RateLimit<K> {
             rate,
             buckets: HashMap::new(),
             active_duration,
+            last_clear_time: SystemTime::now(),
         }
     }
 
@@ -59,7 +61,16 @@ impl<K: PartialEq + Eq + Hash + Clone + Debug> RateLimit<K> {
     /// Returns count of deleted buckets
     pub fn clear_inactive(&mut self) -> usize {
         let current_time = SystemTime::now();
-        self.clear_inactive_to_time(current_time)
+
+        // if not enough time passed - do nothing
+        if self.last_clear_time + self.active_duration < current_time {
+            return 0;
+        }
+
+        let count = self.clear_inactive_to_time(current_time);
+        self.last_clear_time = SystemTime::now();
+
+        count
     }
 
     fn clear_inactive_to_time(&mut self, current_time: SystemTime) -> usize {

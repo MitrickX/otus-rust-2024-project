@@ -1,16 +1,16 @@
+use super::ip_list::ip::ParseError;
+use crate::app::config::Config;
 use crate::app::{
     ip_list::{ip::Ip, list::List},
     rate_limit::{rate::Rate, RateLimit},
 };
+use log::debug;
 use std::{str::FromStr, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
-use crate::app::config::Config;
-
-use super::ip_list::ip::ParseError;
-
 type Result<T> = std::result::Result<T, ApiError>;
 type Client = Arc<tokio_postgres::Client>;
+type RL<T> = Arc<Mutex<RateLimit<T>>>;
 
 pub struct Credentials {
     pub login: String,
@@ -34,9 +34,9 @@ impl std::error::Error for ApiError {}
 
 #[derive(Debug)]
 pub struct Api {
-    rate_limit_login: Arc<Mutex<RateLimit<String>>>,
-    rate_limit_password: Arc<Mutex<RateLimit<String>>>,
-    rate_limit_ip: Arc<Mutex<RateLimit<String>>>,
+    rate_limit_login: RL<String>,
+    rate_limit_password: RL<String>,
+    rate_limit_ip: RL<String>,
     black_ip_list: List,
     white_ip_list: List,
 }
@@ -56,6 +56,13 @@ impl Api {
             Rate::PerMinute(config.limits.ip),
             bucket_active_secs,
         )));
+
+        clear_inactive_worker(
+            Arc::clone(&rate_limit_login),
+            Arc::clone(&rate_limit_password),
+            Arc::clone(&rate_limit_ip),
+            bucket_active_secs,
+        );
 
         let black_list_ip_list = List::new(Arc::clone(&client), "black");
         let white_list_ip_list = List::new(Arc::clone(&client), "white");
@@ -187,4 +194,29 @@ impl Api {
             .await
             .map_err(ApiError::IpListError)
     }
+}
+
+fn clear_inactive_worker(
+    rate_limit_login: RL<String>,
+    rate_limit_password: RL<String>,
+    rate_limit_ip: RL<String>,
+    active_duration: Duration,
+) {
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(active_duration).await;
+
+            let login_buckets = Arc::clone(&rate_limit_login).lock().await.clear_inactive();
+            let password_buckets = Arc::clone(&rate_limit_password)
+                .lock()
+                .await
+                .clear_inactive();
+            let ip_buckets = Arc::clone(&rate_limit_ip).lock().await.clear_inactive();
+
+            debug!(
+                "clear inactive buckets: login={}, password={}, ip={}",
+                login_buckets, password_buckets, ip_buckets
+            );
+        }
+    });
 }
