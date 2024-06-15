@@ -235,7 +235,7 @@ fn clear_inactive_worker(
     ))
     .unwrap();
 
-    warn!("start clear inactive buckets worker");
+    debug!("start clear inactive buckets worker");
 
     tokio::spawn(async move {
         let sleep = tokio::time::sleep(active_duration);
