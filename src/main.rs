@@ -1,5 +1,6 @@
 use clap::Parser;
 use log::info;
+use prometheus_exporter;
 use proto::api_server::{Api, ApiServer};
 use server::app::{
     api::{Api as ApiService, ApiError, Credentials},
@@ -32,9 +33,13 @@ struct Args {
         help = "path to file for configuration application server (limits and etc)"
     )]
     config_path: String,
-}
 
-// TODO: cleaning inactive buckets
+    #[arg(
+        long,
+        help = "metrics exporter ip address with port e.g. 127.0.0.1:50052"
+    )]
+    metrics_addr: String,
+}
 
 fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
     match err {
@@ -208,7 +213,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     run_app_migrations(&mut client).await;
 
-    let auth = ApiService::new(&config, Arc::new(client));
+    let metrics_addr = args.metrics_addr.parse().unwrap();
+    let metrics_exporter = prometheus_exporter::start(metrics_addr).unwrap();
+
+    let auth = ApiService::new(&config, Arc::new(client), metrics_exporter);
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)

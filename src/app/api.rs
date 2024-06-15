@@ -5,6 +5,10 @@ use crate::app::{
     rate_limit::{rate::Rate, RateLimit},
 };
 use log::debug;
+use prometheus_exporter::{
+    prometheus::{labels, opts, register_int_gauge},
+    Exporter,
+};
 use std::{str::FromStr, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
@@ -42,7 +46,7 @@ pub struct Api {
 }
 
 impl Api {
-    pub fn new(config: &Config, client: Client) -> Self {
+    pub fn new(config: &Config, client: Client, metrics_exporter: Exporter) -> Self {
         let bucket_active_secs = Duration::from_secs(config.timeouts.bucket_active_secs);
         let rate_limit_login = Arc::new(Mutex::new(RateLimit::new(
             Rate::PerMinute(config.limits.login),
@@ -61,7 +65,8 @@ impl Api {
             Arc::clone(&rate_limit_login),
             Arc::clone(&rate_limit_password),
             Arc::clone(&rate_limit_ip),
-            bucket_active_secs,
+            Duration::from_secs(config.timeouts.bucket_active_secs),
+            metrics_exporter,
         );
 
         let black_list_ip_list = List::new(Arc::clone(&client), "black");
@@ -201,22 +206,66 @@ fn clear_inactive_worker(
     rate_limit_password: RL<String>,
     rate_limit_ip: RL<String>,
     active_duration: Duration,
+    _metrics_exporter: Exporter,
 ) {
+    let login_rate_limit_buckets_clean_count = register_int_gauge!(opts!(
+        "buckets_clean_count",
+        "How many inactive buckets were cleaned",
+        labels! {
+            "credentials_type" => "login",
+        }
+    ))
+    .unwrap();
+
+    let password_rate_limit_buckets_clean_count = register_int_gauge!(opts!(
+        "buckets_clean_count",
+        "How many inactive buckets were cleaned",
+        labels! {
+            "credentials_type" => "password",
+        }
+    ))
+    .unwrap();
+
+    let ip_rate_limit_buckets_clean_count = register_int_gauge!(opts!(
+        "buckets_clean_count",
+        "How many inactive buckets were cleaned",
+        labels! {
+            "credentials_type" => "ip",
+        }
+    ))
+    .unwrap();
+
+    warn!("start clear inactive buckets worker");
+
     tokio::spawn(async move {
+        let sleep = tokio::time::sleep(active_duration);
+        tokio::pin!(sleep);
+
         loop {
-            tokio::time::sleep(active_duration).await;
+            tokio::select! {
+                () = &mut sleep => {
+                    let login_buckets = Arc::clone(&rate_limit_login).lock().await.clear_inactive();
+                    let password_buckets = Arc::clone(&rate_limit_password)
+                        .lock()
+                        .await
+                        .clear_inactive();
+                    let ip_buckets = Arc::clone(&rate_limit_ip).lock().await.clear_inactive();
 
-            let login_buckets = Arc::clone(&rate_limit_login).lock().await.clear_inactive();
-            let password_buckets = Arc::clone(&rate_limit_password)
-                .lock()
-                .await
-                .clear_inactive();
-            let ip_buckets = Arc::clone(&rate_limit_ip).lock().await.clear_inactive();
+                    debug!(
+                        "clear inactive buckets: login={}, password={}, ip={}",
+                        login_buckets, password_buckets, ip_buckets
+                    );
 
-            debug!(
-                "clear inactive buckets: login={}, password={}, ip={}",
-                login_buckets, password_buckets, ip_buckets
-            );
+                    {
+                        let _guard = metrics_exporter.wait_request();
+                        login_rate_limit_buckets_clean_count.set(login_buckets as i64);
+                        password_rate_limit_buckets_clean_count.set(password_buckets as i64);
+                        ip_rate_limit_buckets_clean_count.set(ip_buckets as i64);
+                    }
+
+                    sleep.as_mut().reset(tokio::time::Instant::now() + active_duration);
+                },
+            }
         }
     });
 }
