@@ -14,7 +14,7 @@ services:
     build:
       context: ../
       dockerfile: ./deploy/Dockerfile
-    command: /server/server --addr 0.0.0.0:50052 --config-path configs/config.yaml
+    command: /server/server --addr 0.0.0.0:50052 --config-path configs/server.yaml
     volumes:
       - ../configs:/server/configs
     ports:

@@ -2,6 +2,8 @@ use cucumber::{given, then, when, World as _};
 use log::warn;
 use proto::api_client::ApiClient;
 use rand::Rng;
+use server::app::config::Config;
+use std::path::Path;
 use std::{env, str::FromStr};
 use tokio::sync::OnceCell;
 
@@ -47,7 +49,18 @@ pub mod proto {
     tonic::include_proto!("api");
 }
 
+static CONFIG: OnceCell<Config> = OnceCell::const_new();
 static HEALTH_CHECK: OnceCell<()> = OnceCell::const_new();
+
+async fn config() -> &'static Config {
+    CONFIG
+        .get_or_init(|| async {
+            let config_path = env::var("API_SERVER_CONFIG_PATH").unwrap();
+            let config_path = Path::new(&config_path);
+            Config::parse(config_path)
+        })
+        .await
+}
 
 async fn health_check() {
     HEALTH_CHECK
@@ -225,17 +238,17 @@ async fn checking_authorization_several_times(
     let credential_key = CredentialKey::from_str(&credential_key).unwrap();
 
     let n = if how_much.trim() == "max allowed" {
-        // TODO: parse config and extract limit
+        let config = config().await;
         match credential_key {
-            CredentialKey::Ip => 1000,
-            CredentialKey::Login => 10,
-            CredentialKey::Password => 100,
+            CredentialKey::Ip => config.limits.ip,
+            CredentialKey::Login => config.limits.login,
+            CredentialKey::Password => config.limits.password,
         }
     } else {
         1
     };
 
-    w.statuses = Vec::<Status>::with_capacity(n);
+    w.statuses = Vec::<Status>::with_capacity(n as usize);
 
     for _ in 0..n {
         w.statuses.push(

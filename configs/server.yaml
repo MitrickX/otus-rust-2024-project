@@ -7,12 +7,3 @@ limits:
 timeouts:
   # how long in seconds rate limit bucket must not be touched until marked as inactive
   bucket_active_secs: 180
-
-# logger:
-#   level: "debug"
-#   output_paths:
-#     - stderr
-#     - /tmp/antibruteforce/outlog
-#   error_output_paths:
-#     - stderr
-#     - /tmp/antibruteforce/errlog
