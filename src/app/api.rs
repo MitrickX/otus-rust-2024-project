@@ -206,7 +206,7 @@ fn clear_inactive_worker(
     rate_limit_password: RL<String>,
     rate_limit_ip: RL<String>,
     active_duration: Duration,
-    _metrics_exporter: Exporter,
+    metrics_exporter: Exporter,
 ) {
     let login_rate_limit_buckets_clean_count = register_int_gauge!(opts!(
         "buckets_clean_count",
