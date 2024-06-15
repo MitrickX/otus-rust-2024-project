@@ -6,7 +6,7 @@ use server::app::{
     migrations::run_app_migrations,
 };
 use std::{str::FromStr, sync::Arc};
-use tokio::sync::{Mutex, OnceCell};
+use tokio::sync::OnceCell;
 
 static ONCE_RUN_MIGRATIONS: OnceCell<()> = OnceCell::const_new();
 

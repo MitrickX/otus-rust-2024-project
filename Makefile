@@ -8,8 +8,12 @@ stop:
 
 restart: stop start
 
+# run all tests (unit, integration, end-to-end) locally
+tests-localhost:
+	@DB_HOST=127.0.0.1 DB_USER=otus DB_NAME=auth DB_PASSWORD=1234 DB_CONNECTION_RETRIES=10 DB_CONNECTION_TIMEOUT=10 API_CONNECTOIN_RETRIES=2 API_CONNECTION_TIMEOUT=10 API_SERVER_URL=http://[::1]:50051 cargo test
+
 # run all tests (unit, integration, end-to-end) in docker
-tests: 
+tests:
 	@set -e ;\
 	tests_status_code=0 ;\
 	docker-compose -f ./deploy/docker-compose-tests.yaml down ;\

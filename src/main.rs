@@ -1,6 +1,5 @@
 use clap::Parser;
 use log::info;
-use prometheus_exporter;
 use proto::api_server::{Api, ApiServer};
 use server::app::{
     api::{Api as ApiService, ApiError, Credentials},
@@ -214,9 +213,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     run_app_migrations(&mut client).await;
 
     let metrics_addr = args.metrics_addr.parse().unwrap();
-    let metrics_exporter = prometheus_exporter::start(metrics_addr).unwrap();
+    prometheus_exporter::start(metrics_addr).unwrap();
 
-    let auth = ApiService::new(&config, Arc::new(client), metrics_exporter);
+    let auth = ApiService::new(&config, Arc::new(client));
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
