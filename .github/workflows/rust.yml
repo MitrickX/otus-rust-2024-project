@@ -22,6 +22,7 @@ jobs:
       run: |
         curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v27.1/protoc-27.1-linux-x86_64.zip
         unzip protoc-27.1-linux-x86_64.zip -d /tmp
+        mv /tmp/bin/protoc /usr/bin/protoc
 
     - name: Fmt check
       run: cargo fmt --check
@@ -30,4 +31,4 @@ jobs:
       run: cargo clippy
 
     - name: Run tests
-      run: PROTOC="/tmp/bin/protoc" cargo test --lib --verbose
+      run: cargo test --lib --verbose
