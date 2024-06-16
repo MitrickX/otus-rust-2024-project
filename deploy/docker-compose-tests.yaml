@@ -48,6 +48,7 @@ services:
       - API_SERVER_URL=http://server:50052
       - API_CONNECTION_RETRIES=20
       - API_CONNECTION_TIMEOUT=10
+      - API_SERVER_CONFIG_PATH=/server/configs/server.yaml
       - RUST_LOG=info
     depends_on:
       - db

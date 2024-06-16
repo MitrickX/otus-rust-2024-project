@@ -49,13 +49,24 @@ pub mod proto {
     tonic::include_proto!("api");
 }
 
+fn get_req_env_var(key: &str) -> String {
+    match env::var(key) {
+        Ok(val) => val,
+        Err(e) => panic!("Can't get env variable {}, cause: {}", key, e),
+    }
+}
+
+fn get_opt_env_var(key: &str, default: &str) -> String {
+    env::var(key).unwrap_or(default.to_owned())
+}
+
 static CONFIG: OnceCell<Config> = OnceCell::const_new();
 static HEALTH_CHECK: OnceCell<()> = OnceCell::const_new();
 
 async fn config() -> &'static Config {
     CONFIG
         .get_or_init(|| async {
-            let config_path = env::var("API_SERVER_CONFIG_PATH").unwrap();
+            let config_path = get_req_env_var("API_SERVER_CONFIG_PATH");
             let config_path = Path::new(&config_path);
             Config::parse(config_path)
         })
@@ -65,17 +76,14 @@ async fn config() -> &'static Config {
 async fn health_check() {
     HEALTH_CHECK
         .get_or_init(|| async {
-            let connection_retries = env::var("API_CONNECTION_RETRIES")
-                .unwrap_or("10".to_owned())
+            let connection_retries = get_opt_env_var("API_CONNECTION_RETRIES", "10")
                 .parse::<u64>()
                 .unwrap();
-            let connection_timeout = env::var("API_CONNECTION_TIMEOUT")
-                .unwrap_or("10".to_owned())
+            let connection_timeout = get_opt_env_var("API_CONNECTION_TIMEOUT", "10")
                 .parse::<u64>()
                 .unwrap();
 
-            let api_server_url =
-                env::var("API_SERVER_URL").unwrap_or("http://[::1]:50051".to_owned());
+            let api_server_url = get_opt_env_var("API_SERVER_URL", "http://[::1]:50051");
 
             for i in 0..connection_retries {
                 match ApiClient::connect(api_server_url.clone()).await {
@@ -110,7 +118,7 @@ async fn health_check() {
 
 async fn api_server_connect() -> ApiClient<tonic::transport::Channel> {
     health_check().await;
-    let api_server_url = env::var("API_SERVER_URL").unwrap_or("http://[::1]:50051".to_owned());
+    let api_server_url = get_opt_env_var("API_SERVER_URL", "http://[::1]:50051");
     ApiClient::connect(api_server_url).await.unwrap()
 }
 
