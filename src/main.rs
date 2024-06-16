@@ -37,7 +37,7 @@ struct Args {
         long,
         help = "metrics exporter ip address with port e.g. 127.0.0.1:50052"
     )]
-    metrics_addr: String,
+    metrics_addr: Option<String>,
 }
 
 fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
@@ -212,10 +212,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     run_app_migrations(&mut client).await;
 
-    let metrics_addr = args.metrics_addr.parse().unwrap();
-    prometheus_exporter::start(metrics_addr).unwrap();
+    let metrics_addr = &args.metrics_addr;
+    if let Some(metrics_addr) = metrics_addr {
+        let metrics_addr = metrics_addr.parse().unwrap();
+        prometheus_exporter::start(metrics_addr).unwrap();
+    }
 
-    let auth = ApiService::new(&config, Arc::new(client));
+    let auth = ApiService::new(&config, Arc::new(client), metrics_addr.is_some());
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)

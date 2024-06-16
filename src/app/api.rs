@@ -43,7 +43,7 @@ pub struct Api {
 }
 
 impl Api {
-    pub fn new(config: &Config, client: Client) -> Self {
+    pub fn new(config: &Config, client: Client, need_expose_metrics: bool) -> Self {
         let bucket_active_secs = Duration::from_secs(config.timeouts.bucket_active_secs);
         let rate_limit_login = Arc::new(Mutex::new(RateLimit::new(
             Rate::PerMinute(config.limits.login),
@@ -63,6 +63,7 @@ impl Api {
             Arc::clone(&rate_limit_password),
             Arc::clone(&rate_limit_ip),
             Duration::from_secs(config.timeouts.bucket_active_secs),
+            need_expose_metrics,
         );
 
         let black_list_ip_list = List::new(Arc::clone(&client), "black");
@@ -202,33 +203,52 @@ fn clear_inactive_worker(
     rate_limit_password: RL<String>,
     rate_limit_ip: RL<String>,
     active_duration: Duration,
+    need_expose_metrics: bool,
 ) {
-    let login_rate_limit_buckets_clean_count = register_int_gauge!(opts!(
-        "buckets_clean_count",
-        "How many inactive buckets were cleaned",
-        labels! {
-            "credentials_type" => "login",
-        }
-    ))
-    .unwrap();
+    let login_rate_limit_buckets_clean_count = if need_expose_metrics {
+        Some(
+            register_int_gauge!(opts!(
+                "buckets_clean_count",
+                "How many inactive buckets were cleaned",
+                labels! {
+                    "credentials_type" => "login",
+                }
+            ))
+            .unwrap(),
+        )
+    } else {
+        None
+    };
 
-    let password_rate_limit_buckets_clean_count = register_int_gauge!(opts!(
-        "buckets_clean_count",
-        "How many inactive buckets were cleaned",
-        labels! {
-            "credentials_type" => "password",
-        }
-    ))
-    .unwrap();
+    let password_rate_limit_buckets_clean_count = if need_expose_metrics {
+        Some(
+            register_int_gauge!(opts!(
+                "buckets_clean_count",
+                "How many inactive buckets were cleaned",
+                labels! {
+                    "credentials_type" => "password",
+                }
+            ))
+            .unwrap(),
+        )
+    } else {
+        None
+    };
 
-    let ip_rate_limit_buckets_clean_count = register_int_gauge!(opts!(
-        "buckets_clean_count",
-        "How many inactive buckets were cleaned",
-        labels! {
-            "credentials_type" => "ip",
-        }
-    ))
-    .unwrap();
+    let ip_rate_limit_buckets_clean_count = if need_expose_metrics {
+        Some(
+            register_int_gauge!(opts!(
+                "buckets_clean_count",
+                "How many inactive buckets were cleaned",
+                labels! {
+                    "credentials_type" => "ip",
+                }
+            ))
+            .unwrap(),
+        )
+    } else {
+        None
+    };
 
     info!("start clear inactive buckets worker");
 
@@ -251,9 +271,17 @@ fn clear_inactive_worker(
                         login_buckets, password_buckets, ip_buckets
                     );
 
-                    login_rate_limit_buckets_clean_count.set(login_buckets as i64);
-                    password_rate_limit_buckets_clean_count.set(password_buckets as i64);
-                    ip_rate_limit_buckets_clean_count.set(ip_buckets as i64);
+                    if let Some(gauge) = &login_rate_limit_buckets_clean_count {
+                        gauge.set(login_buckets as i64);
+                    }
+
+                    if let Some(gauge) = &password_rate_limit_buckets_clean_count {
+                        gauge.set(password_buckets as i64);
+                    }
+
+                    if let Some(gauge) = &ip_rate_limit_buckets_clean_count {
+                        gauge.set(ip_buckets as i64);
+                    }
 
                     sleep.as_mut().reset(tokio::time::Instant::now() + active_duration);
                 },
