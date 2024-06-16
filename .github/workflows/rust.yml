@@ -19,7 +19,8 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup protobuf
-      run: curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v27.1/protoc-27.1-linux-x86_64.zip \
+      run: |
+        curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v27.1/protoc-27.1-linux-x86_64.zip \
             && unzip protoc-27.1-linux-x86_64.zip -d /tmp \
             && export PATH="$PATH:/tmp/bin"
 
