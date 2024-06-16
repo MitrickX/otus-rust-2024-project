@@ -22,11 +22,9 @@ jobs:
       run: |
         curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v27.1/protoc-27.1-linux-x86_64.zip
         unzip protoc-27.1-linux-x86_64.zip -d /tmp
-        export PROTOC="/tmp/bin/protoc"
-        /tmp/bin/protoc --version
 
     - name: Build
       run: PROTOC="/tmp/bin/protoc" cargo build --verbose
 
     - name: Run tests
-      run: cargo test --lib --verbose
+      run: PROTOC="/tmp/bin/protoc" cargo test --lib --verbose
