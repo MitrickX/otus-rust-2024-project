@@ -33,4 +33,4 @@ jobs:
       run: cargo clippy
 
     - name: Run tests
-      run: cargo test --lib --verbose
+      run: make tests
