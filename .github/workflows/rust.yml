@@ -31,12 +31,15 @@ jobs:
 
     - name: Lint check
       run: cargo clippy
+      
+    - name: Build release
+      run: cargo build --release
 
     - name: Run postgres
       run: docker run --name postgres -p 5432:5432 -e POSTGRES_USER=otus -e POSTGRES_PASSWORD=1234 -e POSTGRES_DB=auth -d postgres:latest
 
     - name: Run server
-      run: DB_HOST=127.0.0.1 DB_USER=otus DB_NAME=auth DB_PASSWORD=1234 DB_CONNECTION_RETRIES=10 DB_CONNECTION_TIMEOUT=10 RUST_LOG=info cargo run -- --addr [::1]:50051 --config-path configs/server.yaml &
+      run: DB_HOST=127.0.0.1 DB_USER=otus DB_NAME=auth DB_PASSWORD=1234 DB_CONNECTION_RETRIES=10 DB_CONNECTION_TIMEOUT=10 RUST_LOG=info targets/release/server --addr [::1]:50051 --config-path configs/server.yaml &
 
     - name: Run tests
       run: DB_HOST=127.0.0.1 DB_USER=otus DB_NAME=auth DB_PASSWORD=1234 DB_CONNECTION_RETRIES=10 DB_CONNECTION_TIMEOUT=10 API_CONNECTOIN_RETRIES=2 API_CONNECTION_TIMEOUT=10 API_SERVER_URL=http://[::1]:50051 API_SERVER_CONFIG_PATH=./configs/server.yaml cargo test
