@@ -17,14 +17,15 @@ COPY Cargo.toml Cargo.lock ./
 # Build and cache the dependencies
 RUN USER=root mkdir src && mkdir tests \
     && echo "fn main() {}" > src/main.rs \
-    && echo "fn main() {}" > tests/behavioral_test_ip.rs \
-    && echo "fn main() {}" > tests/integration_test_ip_list.rs
+    && echo "fn main() {}" > tests/test_api.rs \
+    && echo "fn main() {}" > tests/test_ip_list.rs \
+    && echo "fn main() {}" > tests/test_roles.rs
 
 RUN cargo test --no-run
 
 RUN rm src/main.rs
-RUN rm tests/behavioral_test_ip.rs
-RUN rm tests/integration_test_ip_list.rs
+RUN rm tests/test_api.rs
+RUN rm tests/test_ip_list.rs
 
 # Copy the source code
 COPY src ./src
@@ -50,6 +51,6 @@ WORKDIR /server
 # Copy from the previous build
 COPY --from=builder /server/sql ./sql
 COPY --from=builder /server/target/debug/deps/test_server .
-COPY --from=builder /server/target/debug/deps/test_behavioral_test_ip .
-COPY --from=builder /server/target/debug/deps/test_integration_test_ip_list .
+COPY --from=builder /server/target/debug/deps/test_test_api .
+COPY --from=builder /server/target/debug/deps/test_test_ip_list .
 COPY --from=builder /server/tests/api/features ./tests/api/features
