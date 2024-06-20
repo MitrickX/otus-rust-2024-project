@@ -1,5 +1,4 @@
 use super::{permission::Permission, role::Role};
-use std::str::FromStr;
 use std::{collections::HashSet, sync::Arc};
 
 type Client = Arc<tokio_postgres::Client>;
@@ -15,11 +14,33 @@ impl Storage {
         Self { client }
     }
 
+    pub async fn add(&self, role: &Role) -> Result<()> {
+        Arc::clone(&self.client)
+            .execute(
+                r#"INSERT INTO roles (login, description, password_hash, permissions) 
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (login) DO UPDATE 
+SET 
+    description = EXCLUDED.description, 
+    password_hash = EXCLUDED.password_hash,
+    permissions = EXCLUDED.permissions"#,
+                &[
+                    &role.login,
+                    &role.description,
+                    &role.password_hash,
+                    &role.permissions.iter().collect::<Vec<&Permission>>(),
+                ],
+            )
+            .await?;
+
+        Ok(())
+    }
+
     pub async fn get(&self, login: &str) -> Result<Option<Role>> {
         let rows = Arc::clone(&self.client)
             .query(
                 r#"
-    SELECT login, description, password_hash, permissions::TEXT[]
+    SELECT login, description, password_hash, permissions
     FROM roles 
     WHERE login = $1
 "#,
@@ -33,12 +54,10 @@ impl Storage {
                 let role = Role {
                     login: row.get("login"),
                     description: row.get("description"),
-                    password_hash: row.get("password_hash"),
                     permissions: HashSet::from_iter(
-                        row.get::<&str, Vec<String>>("permissions")
-                            .iter()
-                            .flat_map(|p| Permission::from_str(p)),
+                        row.get::<&str, Vec<Permission>>("permissions"),
                     ),
+                    password_hash: row.get("password_hash"),
                 };
                 Ok(Some(role))
             }

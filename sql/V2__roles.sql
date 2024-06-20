@@ -1,5 +1,5 @@
 DO $$ BEGIN
-    CREATE TYPE permission AS ENUM ('modify_ip_list', 'reset_rate_limiter', 'create_role');
+    CREATE TYPE permission AS ENUM ('modify_ip_list', 'reset_rate_limiter', 'manage_role');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;

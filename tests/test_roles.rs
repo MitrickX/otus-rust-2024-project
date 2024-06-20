@@ -27,7 +27,7 @@ async fn once_run_migrations() {
 }
 
 #[tokio::test]
-async fn test_get() {
+async fn test_crud() {
     once_run_migrations().await;
 
     let db_config = DbConfig::from_env();
@@ -42,28 +42,26 @@ async fn test_get() {
     let client = Arc::new(client);
     let storage = Storage::new(Arc::clone(&client));
 
-    Arc::clone(&client)
-        .execute(
-            r#"INSERT INTO roles (login, description, password_hash, permissions) 
-VALUES ('test-login', 'test-description', 'test-password-hash', '{"create_role", "modify_ip_list"}')
-ON CONFLICT (login) DO UPDATE 
-SET 
-    description = EXCLUDED.description, 
-    password_hash = EXCLUDED.password_hash, 
-    permissions = EXCLUDED.permissions"#,
-            &[],
-        )
+    storage
+        .add(&Role::new(
+            "test-login".to_string(),
+            "test-password".to_string(),
+            "test-description".to_string(),
+            HashSet::from([Permission::ManageRole, Permission::ModifyIpList]),
+        ))
         .await
         .unwrap();
 
     let role = storage.get("test-login").await.unwrap();
+    assert!(role.is_some());
+
+    let role = role.unwrap();
+    assert_eq!("test-login", role.login);
+    assert_eq!("test-description", role.description);
     assert_eq!(
-        Some(Role {
-            login: "test-login".to_string(),
-            description: "test-description".to_string(),
-            password_hash: "test-password-hash".to_string(),
-            permissions: HashSet::from([Permission::CreateRole, Permission::ModifyIpList]),
-        }),
-        role
+        HashSet::from([Permission::ManageRole, Permission::ModifyIpList]),
+        role.permissions
     );
+
+    assert!(role.is_password_verified("test-password".to_string()));
 }
