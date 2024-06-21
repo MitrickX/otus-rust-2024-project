@@ -28,4 +28,8 @@ impl Role {
     pub fn is_password_verified(&self, password: String) -> bool {
         verify_password(password, &self.password_hash).is_ok()
     }
+
+    pub fn has_permission(&self, permission: &Permission) -> bool {
+        self.permissions.contains(permission)
+    }
 }
