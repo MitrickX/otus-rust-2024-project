@@ -1,6 +1,7 @@
 use super::auth::token::TokenReleaser;
 use super::auth::token::TokenReleaserError;
 use super::ip_list::ip::ParseError;
+use super::roles::permission::Permission;
 use super::roles::storage::Storage;
 use crate::app::config::Config;
 use crate::app::{
@@ -28,8 +29,10 @@ pub enum ApiError {
     IpListError(Box<dyn std::error::Error>),
     AuthNotAllowed,
     Unauthorized,
+    PermissionDenied,
     RolesStorageError(Box<dyn std::error::Error>),
     AuthTokenReleaseError(TokenReleaserError),
+    AuthTokenVerifyError(TokenReleaserError),
 }
 
 impl std::fmt::Display for ApiError {
@@ -212,6 +215,19 @@ impl Api {
             .clear()
             .await
             .map_err(ApiError::IpListError)
+    }
+
+    pub async fn check_permission(&self, token: &str, permission: Permission) -> Result<()> {
+        let token_permissions = self
+            .token_releaser
+            .verify_token(token)
+            .map_err(ApiError::AuthTokenVerifyError)?;
+
+        if !token_permissions.contains(&permission) {
+            return Err(ApiError::PermissionDenied);
+        }
+
+        Ok(())
     }
 
     pub async fn auth(&self, credentials: Credentials) -> Result<String> {

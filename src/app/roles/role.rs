@@ -39,7 +39,7 @@ mod tests {
             "test_login".to_owned(),
             "test_password_123123".to_owned(),
             "test_description".to_owned(),
-            vec![Permission::ManageRole, Permission::ModifyIpList],
+            vec![Permission::ManageRole, Permission::ManageIpList],
         );
         assert!(role.is_password_verified("test_password_123123"));
         assert!(!role.is_password_verified("test_other_password_123123"));

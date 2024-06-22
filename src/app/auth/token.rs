@@ -100,7 +100,7 @@ mod tests {
             "test_login".to_owned(),
             "test_password".to_owned(),
             "test_description".to_owned(),
-            vec![Permission::ManageRole, Permission::ModifyIpList],
+            vec![Permission::ManageRole, Permission::ManageIpList],
         );
         let result = releaser.release_token(role);
         assert!(result.is_ok());
@@ -114,7 +114,7 @@ mod tests {
             "test_login".to_owned(),
             "test_password".to_owned(),
             "test_description".to_owned(),
-            vec![Permission::ManageRole, Permission::ModifyIpList],
+            vec![Permission::ManageRole, Permission::ManageIpList],
         );
         let token = releaser.release_token(role).unwrap();
         let result = releaser.verify_token(&token);
@@ -123,7 +123,7 @@ mod tests {
         let claims = result.unwrap();
         assert_eq!(
             claims,
-            vec![Permission::ManageRole, Permission::ModifyIpList]
+            vec![Permission::ManageRole, Permission::ManageIpList]
         );
 
         let signing_key = "other_secret".to_owned();

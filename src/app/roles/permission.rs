@@ -5,7 +5,8 @@ use std::{fmt::Display, str::FromStr};
 #[postgres(name = "permission", rename_all = "snake_case")]
 pub enum Permission {
     ManageRole,
-    ModifyIpList,
+    ManageIpList,
+    ViewIpList,
     ResetRateLimiter,
 }
 
@@ -13,7 +14,8 @@ impl Display for Permission {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Permission::ManageRole => write!(f, "manage_role"),
-            Permission::ModifyIpList => write!(f, "modify_ip_list"),
+            Permission::ManageIpList => write!(f, "manage_ip_list"),
+            Permission::ViewIpList => write!(f, "view_ip_list"),
             Permission::ResetRateLimiter => write!(f, "reset_rate_limiter"),
         }
     }
@@ -23,7 +25,8 @@ impl Permission {
     pub fn get_all() -> Vec<Permission> {
         vec![
             Permission::ManageRole,
-            Permission::ModifyIpList,
+            Permission::ManageIpList,
+            Permission::ViewIpList,
             Permission::ResetRateLimiter,
         ]
     }
@@ -45,7 +48,8 @@ impl FromStr for Permission {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "manage_role" => Ok(Permission::ManageRole),
-            "modify_ip_list" => Ok(Permission::ModifyIpList),
+            "manage_ip_list" => Ok(Permission::ManageIpList),
+            "view_ip_list" => Ok(Permission::ViewIpList),
             "reset_rate_limiter" => Ok(Permission::ResetRateLimiter),
             _ => Err(UnknownPermissionError),
         }

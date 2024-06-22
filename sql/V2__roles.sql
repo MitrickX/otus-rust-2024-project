@@ -1,5 +1,10 @@
 DO $$ BEGIN
-    CREATE TYPE permission AS ENUM ('modify_ip_list', 'reset_rate_limiter', 'manage_role');
+    CREATE TYPE permission AS ENUM (
+        'manage_role', 
+        'manage_ip_list', 
+        'view_ip_list',
+        'reset_rate_limiter'
+    );
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -15,8 +20,12 @@ CREATE TABLE IF NOT EXISTS roles (
 INSERT INTO roles (login, description, password_hash, permissions)
 VALUES (
     'api-test-bot', 
-    'Bot user for API testing', 
-    -- just random padding, not real password hash
-    'BpgIICgpmBUkHF9fh2zZTB3FuhoWzTiY5LdS8HUUXSioSZx2lTdOgv99oNOJR1IXYcGOubxZVUUXSioSZx2lTdOgv99oNOJR1IXYcGOubTskRLByUTzJQ5mENd6siigZ', 
-    ARRAY['modify_ip_list'::permission, 'reset_rate_limiter'::permission, 'manage_role'::permission],
+    'Bot user for API testing',
+    '$argon2id$v=19$m=19456,t=2,p=1$V9I9wGKkugNVkPGrDN4RmQ$VuGJDu4sautpFsbqla+6oBDjuGA7Ohi/nz/PITsc0MI', 
+    ARRAY[
+        'manage_role', 
+        'manage_ip_list', 
+        'view_ip_list',
+        'reset_rate_limiter'
+    ]::permission[]
 );

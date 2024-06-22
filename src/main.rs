@@ -6,6 +6,7 @@ use server::app::{
     config::{get_tokens_signing_key, Config, DbConfig},
     connection::connect,
     migrations::run_app_migrations,
+    roles::permission::Permission,
 };
 use std::{error::Error, path::Path, sync::Arc};
 use tonic::transport::Server;
@@ -56,6 +57,12 @@ fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
         ApiError::AuthTokenReleaseError(_) => {
             tonic::Status::new(tonic::Code::Internal, err.to_string())
         }
+        ApiError::AuthTokenVerifyError(_) => {
+            tonic::Status::new(tonic::Code::PermissionDenied, err.to_string())
+        }
+        ApiError::PermissionDenied => {
+            tonic::Status::new(tonic::Code::PermissionDenied, err.to_string())
+        }
     }
 }
 
@@ -85,6 +92,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::AddIpInListRequest>,
     ) -> Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.add_ip_in_black_list(input.ip.clone())
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -97,6 +109,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::AddIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.add_ip_in_white_list(input.ip.clone())
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -109,6 +126,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::DeleteIpFromListRequest>,
     ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.delete_ip_from_black_list(input.ip.clone())
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -121,6 +143,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::DeleteIpFromListRequest>,
     ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.delete_ip_from_white_list(input.ip.clone())
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -133,6 +160,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::IsIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ViewIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         let ok = self
             .is_ip_in_black_list(input.ip.clone())
             .await
@@ -146,6 +178,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::IsIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ViewIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         let ok = self
             .is_ip_in_white_list(input.ip.clone())
             .await
@@ -156,8 +193,14 @@ impl Api for ApiService {
 
     async fn clear_black_list(
         &self,
-        _request: tonic::Request<proto::ClearListRequest>,
+        request: tonic::Request<proto::ClearListRequest>,
     ) -> std::result::Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status> {
+        let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.clear_black_list()
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -167,8 +210,14 @@ impl Api for ApiService {
 
     async fn clear_white_list(
         &self,
-        _request: tonic::Request<proto::ClearListRequest>,
+        request: tonic::Request<proto::ClearListRequest>,
     ) -> std::result::Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status> {
+        let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.clear_white_list()
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -181,6 +230,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::ResetRateLimiterRequest>,
     ) -> std::result::Result<tonic::Response<proto::ResetRateLimiterResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ResetRateLimiter)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         if let Some(ip) = input.ip.as_ref() {
             self.reset_ip_rate_limiter(ip.clone()).await;
         }

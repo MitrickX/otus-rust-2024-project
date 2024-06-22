@@ -24,31 +24,37 @@ message AuthResponse {
 
 message AddIpInListRequest {
     string ip = 1;
+    string token = 2;
 }
 
 message AddIpInListResponse {}
 
 message DeleteIpFromListRequest {
     string ip = 1;
+    string token = 2;
 }
 
 message DeleteIpFromListResponse {}
 
 message IsIpInListRequest {
     string ip = 1;
+    string token = 2;
 }
 
 message IsIpInListResponse {
     bool ok = 1;
 }
 
-message ClearListRequest {}
+message ClearListRequest {
+    string token = 1;
+}
 message ClearBucketResponse {}
 
 message ResetRateLimiterRequest {
     optional string ip = 1;
     optional string login = 2;
     optional string password = 3;
+    string token = 4;
 }
 
 message ResetRateLimiterResponse {}

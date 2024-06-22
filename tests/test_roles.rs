@@ -47,7 +47,7 @@ async fn test_crud() {
             "test-login".to_string(),
             "test-password-54321".to_string(),
             "test-description".to_string(),
-            vec![Permission::ManageRole, Permission::ModifyIpList],
+            vec![Permission::ManageRole, Permission::ManageIpList],
         ))
         .await
         .unwrap();
@@ -62,7 +62,7 @@ async fn test_crud() {
     assert_eq!("test-login", role.login);
     assert_eq!("test-description", role.description);
     assert_eq!(
-        vec![Permission::ManageRole, Permission::ModifyIpList],
+        vec![Permission::ManageRole, Permission::ManageIpList],
         role.permissions
     );
 
