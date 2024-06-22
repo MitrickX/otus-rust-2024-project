@@ -11,3 +11,12 @@ CREATE TABLE IF NOT EXISTS roles (
     permissions permission[],
     PRIMARY KEY (login)
 );
+
+INSERT INTO roles (login, description, password_hash, permissions)
+VALUES (
+    'api-test-bot', 
+    'Bot user for API testing', 
+    -- just random padding, not real password hash
+    'BpgIICgpmBUkHF9fh2zZTB3FuhoWzTiY5LdS8HUUXSioSZx2lTdOgv99oNOJR1IXYcGOubxZVUUXSioSZx2lTdOgv99oNOJR1IXYcGOubTskRLByUTzJQ5mENd6siigZ', 
+    ARRAY['modify_ip_list'::permission, 'reset_rate_limiter'::permission, 'manage_role'::permission],
+);

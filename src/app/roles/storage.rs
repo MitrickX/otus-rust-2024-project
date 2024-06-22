@@ -1,5 +1,5 @@
 use super::{permission::Permission, role::Role};
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 type Client = Arc<tokio_postgres::Client>;
 
@@ -36,7 +36,7 @@ SET
         Ok(())
     }
 
-    pub async fn get(&self, login: &str) -> Result<Option<Role>> {
+    pub async fn get(&self, login: &str, password: &str) -> Result<Option<Role>> {
         let rows = Arc::clone(&self.client)
             .query(
                 r#"
@@ -54,12 +54,15 @@ SET
                 let role = Role {
                     login: row.get("login"),
                     description: row.get("description"),
-                    permissions: HashSet::from_iter(
-                        row.get::<&str, Vec<Permission>>("permissions"),
-                    ),
+                    permissions: row.get::<&str, Vec<Permission>>("permissions"),
                     password_hash: row.get("password_hash"),
                 };
-                Ok(Some(role))
+
+                if role.is_password_verified(password) {
+                    Ok(Some(role))
+                } else {
+                    Ok(None)
+                }
             }
             None => Ok(None),
         }

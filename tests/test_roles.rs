@@ -4,7 +4,7 @@ use server::app::{
     migrations::run_app_migrations,
     roles::{permission::Permission, role::Role, storage::Storage},
 };
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::OnceCell;
 
 static ONCE_RUN_MIGRATIONS: OnceCell<()> = OnceCell::const_new();
@@ -45,23 +45,27 @@ async fn test_crud() {
     storage
         .add(&Role::new(
             "test-login".to_string(),
-            "test-password".to_string(),
+            "test-password-54321".to_string(),
             "test-description".to_string(),
-            HashSet::from([Permission::ManageRole, Permission::ModifyIpList]),
+            vec![Permission::ManageRole, Permission::ModifyIpList],
         ))
         .await
         .unwrap();
 
-    let role = storage.get("test-login").await.unwrap();
+    let role = storage
+        .get("test-login", "test-password-54321")
+        .await
+        .unwrap();
     assert!(role.is_some());
 
     let role = role.unwrap();
     assert_eq!("test-login", role.login);
     assert_eq!("test-description", role.description);
     assert_eq!(
-        HashSet::from([Permission::ManageRole, Permission::ModifyIpList]),
+        vec![Permission::ManageRole, Permission::ModifyIpList],
         role.permissions
     );
 
-    assert!(role.is_password_verified("test-password".to_string()));
+    let role = storage.get("test-login", "test-password").await.unwrap();
+    assert!(role.is_none());
 }

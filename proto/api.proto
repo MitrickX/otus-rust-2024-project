@@ -12,6 +12,16 @@ message IsAuthAllowedResponse {
     bool ok = 1;
 }
 
+message AuthRequest {
+    string login = 1;
+    string password = 2;
+    string ip = 3;
+}
+
+message AuthResponse {
+    string token = 1;
+}
+
 message AddIpInListRequest {
     string ip = 1;
 }
@@ -48,13 +58,14 @@ message HealthCheckRequest{}
 message HealthCheckResponse {}
 
 service Api {
+    rpc IsAuthAllowed(IsAuthAllowedRequest) returns (IsAuthAllowedResponse) {};
+    rpc Auth(AuthRequest) returns (AuthResponse) {};
     rpc AddIpInBlackList (AddIpInListRequest) returns (AddIpInListResponse) {};
     rpc AddIpInWhiteList (AddIpInListRequest) returns (AddIpInListResponse) {};
     rpc DeleteIpFromBlackList (DeleteIpFromListRequest) returns (DeleteIpFromListResponse) {};
     rpc DeleteIpFromWhiteList (DeleteIpFromListRequest) returns (DeleteIpFromListResponse) {};
     rpc IsIpInBlackList (IsIpInListRequest) returns (IsIpInListResponse) {};
     rpc IsIpInWhiteList (IsIpInListRequest) returns (IsIpInListResponse) {};
-    rpc IsAuthAllowed(IsAuthAllowedRequest) returns (IsAuthAllowedResponse) {};
     rpc ClearBlackList(ClearListRequest) returns (ClearBucketResponse) {};
     rpc ClearWhiteList(ClearListRequest) returns (ClearBucketResponse) {};
     rpc ResetRateLimiter(ResetRateLimiterRequest) returns (ResetRateLimiterResponse) {};

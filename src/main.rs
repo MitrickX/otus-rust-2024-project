@@ -3,7 +3,7 @@ use log::info;
 use proto::api_server::{Api, ApiServer};
 use server::app::{
     api::{Api as ApiService, ApiError, Credentials},
-    config::{Config, DbConfig},
+    config::{get_tokens_signing_key, Config, DbConfig},
     connection::connect,
     migrations::run_app_migrations,
 };
@@ -46,6 +46,16 @@ fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
             tonic::Status::new(tonic::Code::InvalidArgument, e.to_string())
         }
         ApiError::IpListError(_) => tonic::Status::new(tonic::Code::Internal, err.to_string()),
+        ApiError::Unauthorized => tonic::Status::new(tonic::Code::Unauthenticated, err.to_string()),
+        ApiError::AuthNotAllowed => {
+            tonic::Status::new(tonic::Code::PermissionDenied, err.to_string())
+        }
+        ApiError::RolesStorageError(_) => {
+            tonic::Status::new(tonic::Code::Internal, err.to_string())
+        }
+        ApiError::AuthTokenReleaseError(_) => {
+            tonic::Status::new(tonic::Code::Internal, err.to_string())
+        }
     }
 }
 
@@ -184,6 +194,22 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::HealthCheckResponse>, tonic::Status> {
         Ok(tonic::Response::new(proto::HealthCheckResponse {}))
     }
+
+    async fn auth(
+        &self,
+        request: tonic::Request<proto::AuthRequest>,
+    ) -> std::result::Result<tonic::Response<proto::AuthResponse>, tonic::Status> {
+        let input = request.get_ref();
+        let token = self
+            .auth(Credentials {
+                login: input.login.clone(),
+                password: input.password.clone(),
+                ip: input.ip.clone(),
+            })
+            .await
+            .map_err(map_api_to_grpc_error)?;
+        Ok(tonic::Response::new(proto::AuthResponse { token }))
+    }
 }
 
 #[tokio::main]
@@ -218,7 +244,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         prometheus_exporter::start(metrics_addr).unwrap();
     }
 
-    let auth = ApiService::new(&config, Arc::new(client), metrics_addr.is_some());
+    let tokens_signing_key = get_tokens_signing_key();
+    let auth = ApiService::new(
+        &config,
+        Arc::new(client),
+        tokens_signing_key,
+        metrics_addr.is_some(),
+    );
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)

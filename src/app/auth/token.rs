@@ -1,7 +1,9 @@
+use crate::app::roles::{permission::Permission, role::Role};
 use hmac::{Hmac, Mac};
 use jwt::{AlgorithmType, Error, Header, SignWithKey, Token, VerifyWithKey};
 use sha2::Sha384;
 use std::collections::BTreeMap;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub enum TokenReleaserError {
@@ -27,21 +29,31 @@ pub struct TokenReleaser {
 }
 
 type Result<T> = std::result::Result<T, TokenReleaserError>;
-type Claims = BTreeMap<String, String>;
 
 impl TokenReleaser {
-    pub fn new(signing_key: &[u8]) -> Result<Self> {
+    pub fn new(signing_key: String) -> Result<Self> {
         Ok(Self {
-            signing_key: Hmac::new_from_slice(signing_key)
+            signing_key: Hmac::new_from_slice(signing_key.as_bytes())
                 .map_err(TokenReleaserError::InvalidSignature)?,
         })
     }
 
-    pub fn release_token(&self, claims: Claims) -> Result<String> {
+    pub fn release_token(&self, role: Role) -> Result<String> {
         let header = Header {
             algorithm: AlgorithmType::Hs384,
             ..Default::default()
         };
+        let permissions: Vec<String> = role
+            .permissions
+            .into_iter()
+            .map(|p| p.to_string())
+            .collect();
+
+        let claims = BTreeMap::from([
+            ("login".to_owned(), role.login),
+            ("permissions".to_owned(), permissions.join(",")),
+            //TODO: expire time
+        ]);
         let token = Token::new(header, claims)
             .sign_with_key(&self.signing_key)
             .map_err(TokenReleaserError::ReleaseFailed)?;
@@ -49,7 +61,7 @@ impl TokenReleaser {
         Ok(token.as_str().to_owned())
     }
 
-    pub fn verify_token(&self, token: &str) -> Result<Claims> {
+    pub fn verify_token(&self, token: &str) -> Result<Vec<Permission>> {
         let token: Token<Header, BTreeMap<String, String>, _> = token
             .verify_with_key(&self.signing_key)
             .map_err(TokenReleaserError::VerifyFailed)?;
@@ -62,43 +74,59 @@ impl TokenReleaser {
             )));
         }
 
-        Ok(token.claims().clone())
+        let claims = token.claims();
+        let permissions: Vec<Permission> = if let Some(permissions) = claims.get("permissions") {
+            permissions
+                .split(',')
+                .flat_map(Permission::from_str)
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        Ok(permissions)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeMap;
 
     #[test]
     fn test_release_token() {
-        let signing_key = b"secret";
+        let signing_key = "secret".to_owned();
         let releaser = TokenReleaser::new(signing_key).unwrap();
-        let mut claims = BTreeMap::new();
-        claims.insert("test_1".to_owned(), "value_1".to_owned());
-        claims.insert("test_2".to_owned(), "value_2".to_owned());
-        let result = releaser.release_token(claims);
+        let role = Role::new(
+            "test_login".to_owned(),
+            "test_password".to_owned(),
+            "test_description".to_owned(),
+            vec![Permission::ManageRole, Permission::ModifyIpList],
+        );
+        let result = releaser.release_token(role);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_verify_token() {
-        let signing_key = b"secret";
+        let signing_key = "secret".to_owned();
         let releaser = TokenReleaser::new(signing_key).unwrap();
-        let mut claims = BTreeMap::new();
-        claims.insert("test_1".to_owned(), "value_1".to_owned());
-        claims.insert("test_2".to_owned(), "value_2".to_owned());
-        let token = releaser.release_token(claims).unwrap();
+        let role = Role::new(
+            "test_login".to_owned(),
+            "test_password".to_owned(),
+            "test_description".to_owned(),
+            vec![Permission::ManageRole, Permission::ModifyIpList],
+        );
+        let token = releaser.release_token(role).unwrap();
         let result = releaser.verify_token(&token);
         assert!(result.is_ok());
 
         let claims = result.unwrap();
-        assert_eq!(claims.len(), 2);
-        assert_eq!(claims.get("test_1").unwrap(), "value_1");
-        assert_eq!(claims.get("test_2").unwrap(), "value_2");
+        assert_eq!(
+            claims,
+            vec![Permission::ManageRole, Permission::ModifyIpList]
+        );
 
-        let signing_key = b"other_secret";
+        let signing_key = "other_secret".to_owned();
         let releaser = TokenReleaser::new(signing_key).unwrap();
         let result = releaser.verify_token(&token);
         assert!(result.is_err());
