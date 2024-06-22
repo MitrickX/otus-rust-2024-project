@@ -7,6 +7,7 @@ use server::app::{
     connection::connect,
     migrations::run_app_migrations,
     roles::permission::Permission,
+    roles::role::Role,
 };
 use std::{error::Error, path::Path, sync::Arc};
 use tonic::transport::Server;
@@ -68,6 +69,45 @@ fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
 
 #[tonic::async_trait]
 impl Api for ApiService {
+    async fn add_role(
+        &self,
+        request: tonic::Request<proto::AddRoleRequest>,
+    ) -> Result<tonic::Response<proto::AddRoleResponse>, tonic::Status> {
+        let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageRole)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
+        let permissions: Vec<Permission> = input
+            .permissions
+            .iter()
+            .flat_map(|p| match *p {
+                x if x == proto::Permission::ViewIpList as i32 => Some(Permission::ViewIpList),
+                x if x == proto::Permission::ManageIpList as i32 => Some(Permission::ManageIpList),
+                x if x == proto::Permission::ResetRateLimiter as i32 => {
+                    Some(Permission::ResetRateLimiter)
+                }
+                x if x == proto::Permission::ManageRole as i32 => Some(Permission::ManageRole),
+                _ => None,
+            })
+            .collect();
+
+        let role = Role::new(
+            input.login.clone(),
+            input.password.clone(),
+            input.description.clone(),
+            permissions,
+        );
+
+        self.add_role_to_storage(&role)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
+        let response = proto::AddRoleResponse {};
+        Ok(tonic::Response::new(response))
+    }
+
     async fn is_auth_allowed(
         &self,
         request: tonic::Request<proto::IsAuthAllowedRequest>,

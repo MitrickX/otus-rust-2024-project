@@ -22,6 +22,23 @@ message AuthResponse {
     string token = 1;
 }
 
+message AddRoleRequest {
+    string login = 1;
+    string description = 2;
+    string password = 3;
+    repeated Permission permissions = 4;
+    string token = 5;
+}
+
+enum Permission {
+    MANAGE_ROLE = 0;
+    MANAGE_IP_LIST = 1;
+    VIEW_IP_LIST = 2;
+    RESET_RATE_LIMITER = 3;
+}
+
+message AddRoleResponse {}
+
 message AddIpInListRequest {
     string ip = 1;
     string token = 2;
@@ -66,6 +83,7 @@ message HealthCheckResponse {}
 service Api {
     rpc IsAuthAllowed(IsAuthAllowedRequest) returns (IsAuthAllowedResponse) {};
     rpc Auth(AuthRequest) returns (AuthResponse) {};
+    rpc AddRole(AddRoleRequest) returns (AddRoleResponse) {};
     rpc AddIpInBlackList (AddIpInListRequest) returns (AddIpInListResponse) {};
     rpc AddIpInWhiteList (AddIpInListRequest) returns (AddIpInListResponse) {};
     rpc DeleteIpFromBlackList (DeleteIpFromListRequest) returns (DeleteIpFromListResponse) {};

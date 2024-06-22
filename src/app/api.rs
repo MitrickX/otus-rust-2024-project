@@ -2,6 +2,7 @@ use super::auth::token::TokenReleaser;
 use super::auth::token::TokenReleaserError;
 use super::ip_list::ip::ParseError;
 use super::roles::permission::Permission;
+use super::roles::role::Role;
 use super::roles::storage::Storage;
 use crate::app::config::Config;
 use crate::app::{
@@ -96,6 +97,15 @@ impl Api {
             roles_storage,
             token_releaser,
         }
+    }
+
+    pub async fn add_role_to_storage(&self, role: &Role) -> Result<()> {
+        self.roles_storage
+            .add(role)
+            .await
+            .map_err(ApiError::RolesStorageError)?;
+
+        Ok(())
     }
 
     pub async fn check_can_auth(&self, credentials: Credentials) -> Result<bool> {
