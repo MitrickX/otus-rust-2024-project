@@ -2,7 +2,9 @@ use cucumber::{given, then, when, World as _};
 use log::warn;
 use proto::api_client::ApiClient;
 use rand::Rng;
-use server::app::config::Config;
+use server::app::auth::token::TokenReleaser;
+use server::app::config::{get_tokens_signing_key, Config};
+use server::app::roles::permission::Permission;
 use std::path::Path;
 use std::{env, str::FromStr};
 use tokio::sync::OnceCell;
@@ -317,9 +319,37 @@ async fn wait_for_minutes(_w: &mut World, minutes: u64) {
     tokio::time::sleep(tokio::time::Duration::from_secs(minutes * 60)).await;
 }
 
+#[when(regex = r#"add role with(?:out)? permissions(.*?)$"#)]
+async fn add_role(w: &mut World, val: String) {
+    let login = generate_string(6);
+    let password = generate_string(8);
+
+    let permissions: Vec<Permission> = val
+        .split(",")
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .flat_map(|s| Permission::from_str(&s))
+        .collect();
+
+    w.statuses = vec![
+        match do_add_role(login.clone(), password.clone(), permissions).await {
+            Err(status) => Status::from_grpc(status),
+            Ok(_) => match do_trying_authorization_with_login_and_password(
+                login.clone(),
+                password.clone(),
+            )
+            .await
+            {
+                Err(status) => Status::from_grpc(status),
+                Ok(result) => Status::Ok(result.get_ref().token.to_string()),
+            },
+        },
+    ];
+}
+
 #[then(regex = r#"^(?:each )?response is Ok\((.*?)\)$"#)]
 async fn is_response_ok(w: &mut World, val: String) {
-    if val == "_" {
+    if val == "_" || val == "token" {
         w.statuses.iter().enumerate().for_each(|(i, s)| {
             assert!(s.is_ok(), "expected response for #{} to be {:?}", i, s);
         });
@@ -383,7 +413,7 @@ async fn list_has_not_ip(_w: &mut World, list_kind: String, ip: String) {
     }
 }
 
-#[then(regex = "authorization is not allowed")]
+#[then("authorization is not allowed")]
 async fn authorization_is_not_allowed(w: &mut World) {
     w.statuses
         .last()
@@ -391,12 +421,45 @@ async fn authorization_is_not_allowed(w: &mut World) {
         .ok_or_panic(|r| assert_eq!(r, "false"));
 }
 
-#[then(regex = "authorization is allowed")]
+#[then("authorization is allowed")]
 async fn authorization_is_allowed(w: &mut World) {
     w.statuses
         .last()
         .unwrap()
         .ok_or_panic(|r| assert_eq!(r, "true"));
+}
+
+#[then(regex = r#"token permissions are (.*)"#)]
+async fn token_has_not_permissions(w: &mut World, val: String) {
+    let status = w.statuses.last().unwrap();
+
+    if val == "empty" {
+        status.ok_or_panic(|token| {
+            let token_releaser = TokenReleaser::new(get_tokens_signing_key()).unwrap();
+            let permissions = token_releaser.verify_token(token).unwrap();
+            assert!(permissions.is_empty());
+        });
+
+        return;
+    }
+
+    let expected_permissions: Vec<String> = val
+        .split(",")
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    status.ok_or_panic(|token| {
+        let token_releaser = TokenReleaser::new(get_tokens_signing_key()).unwrap();
+        let permissions: Vec<String> = token_releaser
+            .verify_token(token)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.to_string())
+            .collect();
+
+        assert_eq!(expected_permissions, permissions);
+    });
 }
 
 async fn do_add_ip_in_list(
@@ -450,6 +513,51 @@ async fn check_list_has_ip(
     }
 }
 
+async fn do_add_role(
+    login: String,
+    password: String,
+    permissions: Vec<Permission>,
+) -> Result<tonic::Response<proto::AddRoleResponse>, tonic::Status> {
+    let token = get_api_test_bot_token().await.to_string();
+    let permissions = permissions
+        .iter()
+        .map(|p| match *p {
+            Permission::ManageRole => proto::Permission::ManageRole as i32,
+            Permission::ManageIpList => proto::Permission::ManageIpList as i32,
+            Permission::ResetRateLimiter => proto::Permission::ResetRateLimiter as i32,
+            Permission::ViewIpList => proto::Permission::ViewIpList as i32,
+        })
+        .collect();
+
+    let req = proto::AddRoleRequest {
+        login,
+        password,
+        description: generate_string(20),
+        permissions,
+        token,
+    };
+    let request = tonic::Request::new(req);
+
+    let mut client = api_server_connect().await;
+
+    client.add_role(request).await
+}
+
+async fn do_trying_authorization_with_login_and_password(
+    login: String,
+    password: String,
+) -> Result<tonic::Response<proto::AuthResponse>, tonic::Status> {
+    let req = proto::AuthRequest {
+        login,
+        password,
+        ip: generate_simple_ip(),
+    };
+
+    let request = tonic::Request::new(req);
+    let mut client = api_server_connect().await;
+    client.auth(request).await
+}
+
 async fn do_trying_authorization(
     credential_key: CredentialKey,
     credential_val: String,
@@ -473,9 +581,7 @@ async fn do_trying_authorization(
     };
 
     let request = tonic::Request::new(req);
-
     let mut client = api_server_connect().await;
-
     client.auth(request).await
 }
 
