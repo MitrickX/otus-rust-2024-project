@@ -10,6 +10,7 @@ use server::app::{
     roles::role::Role,
 };
 use std::{error::Error, path::Path, sync::Arc};
+use tokio::signal;
 use tonic::transport::Server;
 
 mod proto {
@@ -334,8 +335,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Server::builder()
         .add_service(ApiServer::new(auth))
         .add_service(reflection)
-        .serve(addr)
+        .serve_with_shutdown(addr, shutdown_signal())
         .await?;
 
     Ok(())
+}
+
+/// Graceful shutdown.
+async fn shutdown_signal() {
+    // сигнал "ctrl_c"
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    // сигнал terminate
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+    // отслеживание всех сигналов завершения
+    tokio::select! {
+        _ = ctrl_c => { info!("Shutting down server...") },
+        _ = terminate => { info!("Shutting down server...") },
+    }
 }
