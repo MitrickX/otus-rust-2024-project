@@ -17,8 +17,9 @@ COPY Cargo.toml Cargo.lock ./
 # Build and cache the dependencies
 RUN USER=root mkdir src && mkdir tests \
     && echo "fn main() {}" > src/main.rs \
-    && echo "fn main() {}" > tests/behavioral_test_ip.rs \
-    && echo "fn main() {}" > tests/integration_test_ip_list.rs
+    && echo "fn main() {}" > tests/test_api.rs \
+    && echo "fn main() {}" > tests/test_ip_list.rs \
+    && echo "fn main() {}" > tests/test_roles.rs
 
 RUN cargo build --release
 

@@ -50,6 +50,8 @@ services:
       - API_CONNECTION_TIMEOUT=10
       - API_SERVER_CONFIG_PATH=/server/configs/server.yaml
       - RUST_LOG=info
+      - API_TEST_BOT_LOGIN=api-test-bot
+      - API_TEST_BOT_PASSWORD=LspJDcG94BBUm2rYGP7vXa4c
     depends_on:
       - db
       - server

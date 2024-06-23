@@ -3,11 +3,14 @@ use log::info;
 use proto::api_server::{Api, ApiServer};
 use server::app::{
     api::{Api as ApiService, ApiError, Credentials},
-    config::{Config, DbConfig},
+    config::{get_tokens_signing_key, Config, DbConfig},
     connection::connect,
     migrations::run_app_migrations,
+    roles::permission::Permission,
+    roles::role::Role,
 };
 use std::{error::Error, path::Path, sync::Arc};
+use tokio::signal;
 use tonic::transport::Server;
 
 mod proto {
@@ -46,27 +49,63 @@ fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
             tonic::Status::new(tonic::Code::InvalidArgument, e.to_string())
         }
         ApiError::IpListError(_) => tonic::Status::new(tonic::Code::Internal, err.to_string()),
+        ApiError::Unauthorized => tonic::Status::new(tonic::Code::Unauthenticated, err.to_string()),
+        ApiError::AuthNotAllowed => {
+            tonic::Status::new(tonic::Code::PermissionDenied, err.to_string())
+        }
+        ApiError::RolesStorageError(_) => {
+            tonic::Status::new(tonic::Code::Internal, err.to_string())
+        }
+        ApiError::AuthTokenReleaseError(_) => {
+            tonic::Status::new(tonic::Code::Internal, err.to_string())
+        }
+        ApiError::AuthTokenVerifyError(_) => {
+            tonic::Status::new(tonic::Code::PermissionDenied, err.to_string())
+        }
+        ApiError::PermissionDenied => {
+            tonic::Status::new(tonic::Code::PermissionDenied, err.to_string())
+        }
     }
 }
 
 #[tonic::async_trait]
 impl Api for ApiService {
-    async fn is_auth_allowed(
+    async fn add_role(
         &self,
-        request: tonic::Request<proto::IsAuthAllowedRequest>,
-    ) -> Result<tonic::Response<proto::IsAuthAllowedResponse>, tonic::Status> {
+        request: tonic::Request<proto::AddRoleRequest>,
+    ) -> Result<tonic::Response<proto::AddRoleResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        let is_ok_auth = self
-            .check_can_auth(Credentials {
-                login: input.login.clone(),
-                password: input.password.clone(),
-                ip: input.ip.clone(),
-            })
+        self.check_permission(&input.token, Permission::ManageRole)
             .await
             .map_err(map_api_to_grpc_error)?;
 
-        let response = proto::IsAuthAllowedResponse { ok: is_ok_auth };
+        let permissions: Vec<Permission> = input
+            .permissions
+            .iter()
+            .flat_map(|p| match *p {
+                x if x == proto::Permission::ViewIpList as i32 => Some(Permission::ViewIpList),
+                x if x == proto::Permission::ManageIpList as i32 => Some(Permission::ManageIpList),
+                x if x == proto::Permission::ResetRateLimiter as i32 => {
+                    Some(Permission::ResetRateLimiter)
+                }
+                x if x == proto::Permission::ManageRole as i32 => Some(Permission::ManageRole),
+                _ => None,
+            })
+            .collect();
+
+        let role = Role::new(
+            input.login.clone(),
+            input.password.clone(),
+            input.description.clone(),
+            permissions,
+        );
+
+        self.add_role_to_storage(&role)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
+        let response = proto::AddRoleResponse {};
         Ok(tonic::Response::new(response))
     }
 
@@ -75,6 +114,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::AddIpInListRequest>,
     ) -> Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.add_ip_in_black_list(input.ip.clone())
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -87,6 +131,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::AddIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.add_ip_in_white_list(input.ip.clone())
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -99,6 +148,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::DeleteIpFromListRequest>,
     ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.delete_ip_from_black_list(input.ip.clone())
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -111,6 +165,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::DeleteIpFromListRequest>,
     ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.delete_ip_from_white_list(input.ip.clone())
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -123,6 +182,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::IsIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ViewIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         let ok = self
             .is_ip_in_black_list(input.ip.clone())
             .await
@@ -136,6 +200,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::IsIpInListRequest>,
     ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ViewIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         let ok = self
             .is_ip_in_white_list(input.ip.clone())
             .await
@@ -146,8 +215,14 @@ impl Api for ApiService {
 
     async fn clear_black_list(
         &self,
-        _request: tonic::Request<proto::ClearListRequest>,
+        request: tonic::Request<proto::ClearListRequest>,
     ) -> std::result::Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status> {
+        let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.clear_black_list()
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -157,8 +232,14 @@ impl Api for ApiService {
 
     async fn clear_white_list(
         &self,
-        _request: tonic::Request<proto::ClearListRequest>,
+        request: tonic::Request<proto::ClearListRequest>,
     ) -> std::result::Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status> {
+        let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ManageIpList)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         self.clear_white_list()
             .await
             .map_err(map_api_to_grpc_error)?;
@@ -171,6 +252,11 @@ impl Api for ApiService {
         request: tonic::Request<proto::ResetRateLimiterRequest>,
     ) -> std::result::Result<tonic::Response<proto::ResetRateLimiterResponse>, tonic::Status> {
         let input = request.get_ref();
+
+        self.check_permission(&input.token, Permission::ResetRateLimiter)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
         if let Some(ip) = input.ip.as_ref() {
             self.reset_ip_rate_limiter(ip.clone()).await;
         }
@@ -183,6 +269,22 @@ impl Api for ApiService {
         _request: tonic::Request<proto::HealthCheckRequest>,
     ) -> std::result::Result<tonic::Response<proto::HealthCheckResponse>, tonic::Status> {
         Ok(tonic::Response::new(proto::HealthCheckResponse {}))
+    }
+
+    async fn auth(
+        &self,
+        request: tonic::Request<proto::AuthRequest>,
+    ) -> std::result::Result<tonic::Response<proto::AuthResponse>, tonic::Status> {
+        let input = request.get_ref();
+        let token = self
+            .auth(Credentials {
+                login: input.login.clone(),
+                password: input.password.clone(),
+                ip: input.ip.clone(),
+            })
+            .await
+            .map_err(map_api_to_grpc_error)?;
+        Ok(tonic::Response::new(proto::AuthResponse { token }))
     }
 }
 
@@ -218,7 +320,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         prometheus_exporter::start(metrics_addr).unwrap();
     }
 
-    let auth = ApiService::new(&config, Arc::new(client), metrics_addr.is_some());
+    let tokens_signing_key = get_tokens_signing_key();
+    let auth = ApiService::new(
+        &config,
+        Arc::new(client),
+        tokens_signing_key,
+        metrics_addr.is_some(),
+    );
 
     let reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
@@ -227,8 +335,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Server::builder()
         .add_service(ApiServer::new(auth))
         .add_service(reflection)
-        .serve(addr)
+        .serve_with_shutdown(addr, shutdown_signal())
         .await?;
 
     Ok(())
+}
+
+/// Graceful shutdown.
+async fn shutdown_signal() {
+    // сигнал "ctrl_c"
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    // сигнал terminate
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+    // отслеживание всех сигналов завершения
+    tokio::select! {
+        _ = ctrl_c => { info!("Shutting down server...") },
+        _ = terminate => { info!("Shutting down server...") },
+    }
 }

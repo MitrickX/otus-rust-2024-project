@@ -8,6 +8,6 @@ CREATE TABLE IF NOT EXISTS ip_list (
     PRIMARY KEY (ip_str, kind)
 );
 
-CREATE UNIQUE INDEX ip_mask ON ip_list USING btree (ip, mask, kind);
-CREATE INDEX mask ON ip_list USING btree (mask);
-CREATE INDEX kind ON ip_list USING btree (kind);
+CREATE UNIQUE INDEX IF NOT EXISTS public_ip_list_ip_mask_idx ON ip_list USING btree (ip, mask, kind);
+CREATE INDEX IF NOT EXISTS public_ip_list_mask_idx ON ip_list USING btree (mask);
+CREATE INDEX IF NOT EXISTS public_ip_list_kind_idx ON ip_list USING btree (kind);

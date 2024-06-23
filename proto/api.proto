@@ -2,43 +2,66 @@ syntax = "proto3";
 
 package api;
 
-message IsAuthAllowedRequest {
+message AuthRequest {
     string login = 1;
     string password = 2;
     string ip = 3;
 }
 
-message IsAuthAllowedResponse {
-    bool ok = 1;
+message AuthResponse {
+    string token = 1;
 }
+
+message AddRoleRequest {
+    string login = 1;
+    string description = 2;
+    string password = 3;
+    repeated Permission permissions = 4;
+    string token = 5;
+}
+
+enum Permission {
+    MANAGE_ROLE = 0;
+    MANAGE_IP_LIST = 1;
+    VIEW_IP_LIST = 2;
+    RESET_RATE_LIMITER = 3;
+}
+
+message AddRoleResponse {}
 
 message AddIpInListRequest {
     string ip = 1;
+    string token = 2;
 }
 
 message AddIpInListResponse {}
 
 message DeleteIpFromListRequest {
     string ip = 1;
+    string token = 2;
 }
 
 message DeleteIpFromListResponse {}
 
 message IsIpInListRequest {
     string ip = 1;
+    string token = 2;
 }
 
 message IsIpInListResponse {
     bool ok = 1;
 }
 
-message ClearListRequest {}
+message ClearListRequest {
+    string token = 1;
+}
 message ClearBucketResponse {}
 
 message ResetRateLimiterRequest {
     optional string ip = 1;
     optional string login = 2;
     optional string password = 3;
+    string token = 4;
 }
 
 message ResetRateLimiterResponse {}
@@ -48,13 +71,14 @@ message HealthCheckRequest{}
 message HealthCheckResponse {}
 
 service Api {
+    rpc Auth(AuthRequest) returns (AuthResponse) {};
+    rpc AddRole(AddRoleRequest) returns (AddRoleResponse) {};
     rpc AddIpInBlackList (AddIpInListRequest) returns (AddIpInListResponse) {};
     rpc AddIpInWhiteList (AddIpInListRequest) returns (AddIpInListResponse) {};
     rpc DeleteIpFromBlackList (DeleteIpFromListRequest) returns (DeleteIpFromListResponse) {};
     rpc DeleteIpFromWhiteList (DeleteIpFromListRequest) returns (DeleteIpFromListResponse) {};
     rpc IsIpInBlackList (IsIpInListRequest) returns (IsIpInListResponse) {};
     rpc IsIpInWhiteList (IsIpInListRequest) returns (IsIpInListResponse) {};
-    rpc IsAuthAllowed(IsAuthAllowedRequest) returns (IsAuthAllowedResponse) {};
     rpc ClearBlackList(ClearListRequest) returns (ClearBucketResponse) {};
     rpc ClearWhiteList(ClearListRequest) returns (ClearBucketResponse) {};
     rpc ResetRateLimiter(ResetRateLimiterRequest) returns (ResetRateLimiterResponse) {};

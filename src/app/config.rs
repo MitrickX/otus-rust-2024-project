@@ -60,3 +60,8 @@ impl DbConfig {
         }
     }
 }
+
+pub fn get_tokens_signing_key() -> String {
+    "some_test_signing_key".to_owned()
+    //env::var("TOKENS_SIGNING_KEY").unwrap()
+}

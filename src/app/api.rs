@@ -1,4 +1,9 @@
+use super::auth::token::TokenReleaser;
+use super::auth::token::TokenReleaserError;
 use super::ip_list::ip::ParseError;
+use super::roles::permission::Permission;
+use super::roles::role::Role;
+use super::roles::storage::Storage;
 use crate::app::config::Config;
 use crate::app::{
     ip_list::{ip::Ip, list::List},
@@ -23,6 +28,12 @@ pub struct Credentials {
 pub enum ApiError {
     IpParseError(ParseError),
     IpListError(Box<dyn std::error::Error>),
+    AuthNotAllowed,
+    Unauthorized,
+    PermissionDenied,
+    RolesStorageError(Box<dyn std::error::Error>),
+    AuthTokenReleaseError(TokenReleaserError),
+    AuthTokenVerifyError(TokenReleaserError),
 }
 
 impl std::fmt::Display for ApiError {
@@ -33,17 +44,23 @@ impl std::fmt::Display for ApiError {
 
 impl std::error::Error for ApiError {}
 
-#[derive(Debug)]
 pub struct Api {
     rate_limit_login: RL<String>,
     rate_limit_password: RL<String>,
     rate_limit_ip: RL<String>,
     black_ip_list: List,
     white_ip_list: List,
+    roles_storage: Storage,
+    token_releaser: TokenReleaser,
 }
 
 impl Api {
-    pub fn new(config: &Config, client: Client, need_expose_metrics: bool) -> Self {
+    pub fn new(
+        config: &Config,
+        client: Client,
+        tokens_signing_key: String,
+        need_expose_metrics: bool,
+    ) -> Self {
         let bucket_active_secs = Duration::from_secs(config.timeouts.bucket_active_secs);
         let rate_limit_login = Arc::new(Mutex::new(RateLimit::new(
             Rate::PerMinute(config.limits.login),
@@ -66,16 +83,29 @@ impl Api {
             need_expose_metrics,
         );
 
-        let black_list_ip_list = List::new(Arc::clone(&client), "black");
-        let white_list_ip_list = List::new(Arc::clone(&client), "white");
+        let black_ip_list = List::new(Arc::clone(&client), "black");
+        let white_ip_list = List::new(Arc::clone(&client), "white");
+        let roles_storage = Storage::new(Arc::clone(&client));
+        let token_releaser = TokenReleaser::new(tokens_signing_key).unwrap();
 
         Self {
             rate_limit_login,
             rate_limit_password,
             rate_limit_ip,
-            black_ip_list: black_list_ip_list,
-            white_ip_list: white_list_ip_list,
+            black_ip_list,
+            white_ip_list,
+            roles_storage,
+            token_releaser,
         }
+    }
+
+    pub async fn add_role_to_storage(&self, role: &Role) -> Result<()> {
+        self.roles_storage
+            .add(role)
+            .await
+            .map_err(ApiError::RolesStorageError)?;
+
+        Ok(())
     }
 
     pub async fn check_can_auth(&self, credentials: Credentials) -> Result<bool> {
@@ -195,6 +225,47 @@ impl Api {
             .clear()
             .await
             .map_err(ApiError::IpListError)
+    }
+
+    pub async fn check_permission(&self, token: &str, permission: Permission) -> Result<()> {
+        let token_permissions = self
+            .token_releaser
+            .verify_token(token)
+            .map_err(ApiError::AuthTokenVerifyError)?;
+
+        if !token_permissions.contains(&permission) {
+            return Err(ApiError::PermissionDenied);
+        }
+
+        Ok(())
+    }
+
+    pub async fn auth(&self, credentials: Credentials) -> Result<String> {
+        let login = credentials.login.clone();
+        let password = credentials.password.clone();
+
+        let can_auth = self.check_can_auth(credentials).await?;
+        if !can_auth {
+            return Err(ApiError::AuthNotAllowed);
+        }
+
+        let result = self
+            .roles_storage
+            .get(&login, &password)
+            .await
+            .map_err(ApiError::RolesStorageError)?;
+
+        match result {
+            Some(role) => {
+                let token = self
+                    .token_releaser
+                    .release_token(role)
+                    .map_err(ApiError::AuthTokenReleaseError)?;
+
+                Ok(token)
+            }
+            None => Err(ApiError::Unauthorized),
+        }
     }
 }
 
