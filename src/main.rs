@@ -108,25 +108,6 @@ impl Api for ApiService {
         Ok(tonic::Response::new(response))
     }
 
-    async fn is_auth_allowed(
-        &self,
-        request: tonic::Request<proto::IsAuthAllowedRequest>,
-    ) -> Result<tonic::Response<proto::IsAuthAllowedResponse>, tonic::Status> {
-        let input = request.get_ref();
-
-        let is_ok_auth = self
-            .check_can_auth(Credentials {
-                login: input.login.clone(),
-                password: input.password.clone(),
-                ip: input.ip.clone(),
-            })
-            .await
-            .map_err(map_api_to_grpc_error)?;
-
-        let response = proto::IsAuthAllowedResponse { ok: is_ok_auth };
-        Ok(tonic::Response::new(response))
-    }
-
     async fn add_ip_in_black_list(
         &self,
         request: tonic::Request<proto::AddIpInListRequest>,

@@ -2,16 +2,6 @@ syntax = "proto3";
 
 package api;
 
-message IsAuthAllowedRequest {
-    string login = 1;
-    string password = 2;
-    string ip = 3;
-}
-
-message IsAuthAllowedResponse {
-    bool ok = 1;
-}
-
 message AuthRequest {
     string login = 1;
     string password = 2;
@@ -81,7 +71,6 @@ message HealthCheckRequest{}
 message HealthCheckResponse {}
 
 service Api {
-    rpc IsAuthAllowed(IsAuthAllowedRequest) returns (IsAuthAllowedResponse) {};
     rpc Auth(AuthRequest) returns (AuthResponse) {};
     rpc AddRole(AddRoleRequest) returns (AddRoleResponse) {};
     rpc AddIpInBlackList (AddIpInListRequest) returns (AddIpInListResponse) {};

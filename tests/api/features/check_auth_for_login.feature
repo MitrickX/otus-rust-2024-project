@@ -4,19 +4,19 @@ Feature: Check authorization allowance for current login
   Scenario: Authorization attempts hit rate limit by login
     Given reset rate limter for login test-login-1234
     
-    When checking authorization with login test-login-1234 max allowed times
-    Then each response is Ok(true)
+    When trying authorization with login test-login-1234 max allowed times
+    Then each response is Err(Unauthenticated)
 
-    When checking authorization with login test-login-1234
-    Then response is Ok(false)
+    When trying authorization with login test-login-1234
+    Then response is Err(PermissionDenied)
 
     When wait for 1 minute
-    And checking authorization with login test-login-1234 max allowed times
-    Then each response is Ok(true)
+    And trying authorization with login test-login-1234 max allowed times
+    Then each response is Err(Unauthenticated)
 
-    When checking authorization with login test-login-1234
-    Then response is Ok(false)
+    When trying authorization with login test-login-1234
+    Then response is Err(PermissionDenied)
 
     # different login, hence allowed to authorize for now
-    When checking authorization with login test-login-5678
-    Then each response is Ok(true)
+    When trying authorization with login test-login-5678
+    Then each response is Err(Unauthenticated)
