@@ -3,9 +3,9 @@
 ## Тех задание
 Микросвервис авторизации
 
-Основа базируется [на этом ТЗ|https://github.com/OtusGolang/final_project/blob/master/01-anti-bruteforce.md]
+Основа базируется [на этом ТЗ сервиса антибрутфорса](https://github.com/OtusGolang/final_project/blob/master/01-anti-bruteforce.md)
 
-Моя реализация на [Golang|https://github.com/MitrickX/otus-golang-2019-project-antibruteforce]
+Моя реализация на [Golang](https://github.com/MitrickX/otus-golang-2019-project-antibruteforce)
 
 
 Помимо логики антибрутфорса реализовано
@@ -15,7 +15,7 @@
 4) Все методы сервиса (кроме метода для авторизации) проверяют необходимое разрешение
 
 **Как запускать**
-1) Все тесты (юнит, интеграционные, api) в отдельном контейнере
+1) Запустить все тесты - юнит, интеграционные, BDD gherkin api тесты - в отдельном контейнере
 
 ```
  make tests
