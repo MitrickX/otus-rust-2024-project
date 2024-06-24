@@ -1,47 +1,33 @@
 # OTUS Rust Basic (2024) project
 
 ## Тех задание
-Программа минимум микросервис антибрутфорс для авторизации - полное ТЗ тут https://github.com/OtusGolang/final_project/blob/master/01-anti-bruteforce.md
+Микросвервис авторизации
 
-Моя реализация на ГО тут https://github.com/MitrickX/otus-golang-2019-project-antibruteforce 
+Основа базируется [на этом ТЗ|https://github.com/OtusGolang/final_project/blob/master/01-anti-bruteforce.md]
 
-По факту просто перенести это и есть программа минимум
+Моя реализация на [Golang|https://github.com/MitrickX/otus-golang-2019-project-antibruteforce]
 
-Плюс, если время останется, доделать его до полного сервиса авторизатора
+
+Помимо логики антибрутфорса реализовано
 1) Хранение авторизационных данных (логин, хеш пароля, набор разрешений)
-2) Генерация при верных авторизацонных данных авторизацонного токена на основе JWT (с ограниченным TTL)
+2) Генерация при верных авторизацонных данных авторизацонного токена на основе JWT (без ограниченния по TTL, это не сделано)
 3) Проверка валидности авторизацонного токена
-4) Админ-АПИ (нужны разрешения в БД), для управления. Авторизация тоже на основе этого же сервиса
+4) Все методы сервиса (кроме метода для авторизации) проверяют необходимое разрешение
 
-**Подготовить окружение**
-1) Поставить postgresql
-2) Создать роль и БД
-
-```
-psql -U postgres
-
-create role otus with createdb login password '1234';
-create database auth with owner 'otus';
-create database auth_test with owner 'otus';
-\q
-```
-
-
-3) Запустить интеграционные тесты
-```
-cargo test --package server --test test_ip_list -- --nocapture
-```
-
-4) Запустить API тесты 
-```
-cargo test --test api_test_ip_list --package server
-```
-
-**Examples**
+**Как запускать**
+1) Все тесты (юнит, интеграционные, api) в отдельном контейнере
 
 ```
-grpcurl -plaintext -d '{"login": "test", "password": "1234", "ip": "127.0.0.1"}' '[::1]:50051' auth.Auth.Auth
+ make tests
 ```
+
+2) Запустить сервис 
+
+```
+make restart
+```
+
+3) Запустить UI grpc клиент
 
 ```
 grpcui -plaintext '[::1]:50051'
