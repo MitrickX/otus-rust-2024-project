@@ -35,5 +35,6 @@ services:
       - DB_CONNECTION_RETRIES=20
       - DB_CONNECTION_TIMEOUT=10
       - RUST_LOG=info
+      - TOKENS_SIGNING_KEY=ez9KUMO9hY5GKLokRBDRTdp9rhiPCw5DYZnJir83MUAA1rrQB61LzPcSCJuN6NPy
     depends_on:
       - db
