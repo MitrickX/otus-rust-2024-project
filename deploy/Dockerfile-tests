@@ -1,5 +1,5 @@
 # Rust as the base image
-FROM rust:1.75.0-slim as builder
+FROM rust:slim as builder
 
 # fix rust http openssl bug
 RUN apt-get update \
@@ -12,7 +12,7 @@ RUN USER=root mkdir -p /server
 WORKDIR /server
 
 # Capture dependencies
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
 
 # Build and cache the dependencies
 RUN USER=root mkdir src && mkdir tests \
