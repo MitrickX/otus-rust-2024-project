@@ -38,7 +38,16 @@ pub enum ApiError {
 
 impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Self::IpParseError(e) => write!(f, "ip parse error: {}", e),
+            Self::IpListError(e) => write!(f, "ip list error: {}", e),
+            Self::AuthNotAllowed => write!(f, "auth not allowed"),
+            Self::Unauthorized => write!(f, "unauthorized"),
+            Self::PermissionDenied => write!(f, "permission denied"),
+            Self::RolesStorageError(e) => write!(f, "roles storage error: {}", e),
+            Self::AuthTokenReleaseError(e) => write!(f, "auth token release error: {}", e),
+            Self::AuthTokenVerifyError(e) => write!(f, "auth token verify error: {}", e),
+        }
     }
 }
 
@@ -255,11 +264,13 @@ impl Api {
             .await
             .map_err(ApiError::RolesStorageError)?;
 
+        //TODO: remove hardcoded duration
+
         match result {
             Some(role) => {
                 let token = self
                     .token_releaser
-                    .release_token(role)
+                    .release_token(role, Duration::from_secs(3600))
                     .map_err(ApiError::AuthTokenReleaseError)?;
 
                 Ok(token)
