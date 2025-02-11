@@ -3,7 +3,7 @@ FROM rust:1.75.0-slim as builder
 
 # fix rust http openssl bug
 RUN apt-get update \
-    && apt-get install libssl-dev \ 
+    && apt-get install libssl-dev -y \ 
     && apt-get install pkg-config -y \ 
     && apt-get install protobuf-compiler -y
 
