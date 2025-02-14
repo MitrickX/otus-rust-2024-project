@@ -12,6 +12,7 @@ pub struct Limits {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Timeouts {
     pub bucket_active_secs: u64,
+    pub auth_token_expiration_secs: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

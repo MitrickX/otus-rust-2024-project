@@ -7,3 +7,6 @@ limits:
 timeouts:
   # how long in seconds rate limit bucket must not be touched until marked as inactive
   bucket_active_secs: 180
+
+  # how long in seconds token is valid after creation
+  auth_token_expiration_secs: 300

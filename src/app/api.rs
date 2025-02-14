@@ -61,6 +61,7 @@ pub struct Api {
     white_ip_list: List,
     roles_storage: Storage,
     token_releaser: TokenReleaser,
+    auth_token_expiration_time: Duration,
 }
 
 impl Api {
@@ -105,6 +106,9 @@ impl Api {
             white_ip_list,
             roles_storage,
             token_releaser,
+            auth_token_expiration_time: Duration::from_secs(
+                config.timeouts.auth_token_expiration_secs,
+            ),
         }
     }
 
@@ -264,13 +268,11 @@ impl Api {
             .await
             .map_err(ApiError::RolesStorageError)?;
 
-        //TODO: remove hardcoded duration
-
         match result {
             Some(role) => {
                 let token = self
                     .token_releaser
-                    .release_token(role, Duration::from_secs(3600))
+                    .release_token(role, self.auth_token_expiration_time)
                     .map_err(ApiError::AuthTokenReleaseError)?;
 
                 Ok(token)
