@@ -61,7 +61,8 @@ pub struct Api {
     white_ip_list: List,
     roles_storage: Storage,
     token_releaser: TokenReleaser,
-    auth_token_expiration_time: Duration,
+    access_token_expiration_time: Duration,
+    _refresh_token_expiration_time: Duration,
 }
 
 impl Api {
@@ -106,8 +107,11 @@ impl Api {
             white_ip_list,
             roles_storage,
             token_releaser,
-            auth_token_expiration_time: Duration::from_secs(
-                config.timeouts.auth_token_expiration_secs,
+            access_token_expiration_time: Duration::from_secs(
+                config.timeouts.access_token_expiration_secs,
+            ),
+            _refresh_token_expiration_time: Duration::from_secs(
+                config.timeouts.refresh_token_expiration_secs,
             ),
         }
     }
@@ -243,7 +247,7 @@ impl Api {
     pub async fn check_permission(&self, token: &str, permission: Permission) -> Result<()> {
         let token_permissions = self
             .token_releaser
-            .verify_token(token)
+            .verify_access_token(token)
             .map_err(ApiError::AuthTokenVerifyError)?;
 
         if !token_permissions.contains(&permission) {
@@ -272,7 +276,7 @@ impl Api {
             Some(role) => {
                 let token = self
                     .token_releaser
-                    .release_token(role, self.auth_token_expiration_time)
+                    .release_access_token(role, self.access_token_expiration_time)
                     .map_err(ApiError::AuthTokenReleaseError)?;
 
                 Ok(token)

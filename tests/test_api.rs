@@ -436,7 +436,7 @@ async fn token_has_not_permissions(w: &mut World, val: String) {
     if val == "empty" {
         status.ok_or_panic(|token| {
             let token_releaser = TokenReleaser::new(get_tokens_signing_key()).unwrap();
-            let permissions = token_releaser.verify_token(token).unwrap();
+            let permissions = token_releaser.verify_access_token(token).unwrap();
             assert!(permissions.is_empty());
         });
 
@@ -452,7 +452,7 @@ async fn token_has_not_permissions(w: &mut World, val: String) {
     status.ok_or_panic(|token| {
         let token_releaser = TokenReleaser::new(get_tokens_signing_key()).unwrap();
         let permissions: Vec<String> = token_releaser
-            .verify_token(token)
+            .verify_access_token(token)
             .unwrap()
             .into_iter()
             .map(|p| p.to_string())
