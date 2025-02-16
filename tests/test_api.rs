@@ -130,9 +130,15 @@ async fn get_api_test_bot_token() -> &'static str {
             };
             let request = tonic::Request::new(req);
 
-            let token = client.auth(request).await.unwrap().get_ref().token.clone();
+            let access_token = client
+                .auth(request)
+                .await
+                .unwrap()
+                .get_ref()
+                .access_token
+                .clone();
 
-            token
+            access_token
         })
         .await
 }
@@ -197,9 +203,9 @@ struct World {
 
 #[given(regex = r#"^empty (.+) list$"#)]
 async fn empty_list(_w: &mut World, list_kind: String) {
-    let token = get_api_test_bot_token().await.to_string();
+    let access_token = get_api_test_bot_token().await.to_string();
 
-    let req = proto::ClearListRequest { token };
+    let req = proto::ClearListRequest { access_token };
     let request = tonic::Request::new(req);
 
     let mut client = api_server_connect().await;
@@ -227,24 +233,24 @@ async fn given_list_without_ip(_w: &mut World, list_kind: String, ip: String) {
 
 #[given(regex = r#"reset rate limter for (ip|login|password) (.+)$"#)]
 async fn reset_rate_limiter(w: &mut World, credential_key: String, credential_val: String) {
-    let token = get_api_test_bot_token().await.to_string();
+    let access_token = get_api_test_bot_token().await.to_string();
     let key = CredentialKey::from_str(&credential_key).unwrap();
 
     let req = match key {
         CredentialKey::Ip => proto::ResetRateLimiterRequest {
-            token,
+            access_token,
             login: None,
             password: None,
             ip: Some(credential_val),
         },
         CredentialKey::Login => proto::ResetRateLimiterRequest {
-            token,
+            access_token,
             login: Some(credential_val),
             password: None,
             ip: None,
         },
         CredentialKey::Password => proto::ResetRateLimiterRequest {
-            token,
+            access_token,
             login: None,
             password: Some(credential_val),
             ip: None,
@@ -307,7 +313,7 @@ async fn checking_authorization_several_times(
     for _ in 0..n {
         w.statuses.push(
             match do_trying_authorization(credential_key, credential_val.clone()).await {
-                Ok(result) => Status::Ok(result.get_ref().token.to_string()),
+                Ok(result) => Status::Ok(result.get_ref().access_token.to_string()),
                 Err(status) => Status::from_grpc(status),
             },
         );
@@ -341,7 +347,7 @@ async fn add_role(w: &mut World, val: String) {
             .await
             {
                 Err(status) => Status::from_grpc(status),
-                Ok(result) => Status::Ok(result.get_ref().token.to_string()),
+                Ok(result) => Status::Ok(result.get_ref().access_token.to_string()),
             },
         },
     ];
@@ -467,8 +473,8 @@ async fn do_add_ip_in_list(
     list_kind: ListKind,
 ) -> Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
     let ip = ip.to_owned();
-    let token = get_api_test_bot_token().await.to_string();
-    let req = proto::AddIpInListRequest { ip, token };
+    let access_token = get_api_test_bot_token().await.to_string();
+    let req = proto::AddIpInListRequest { ip, access_token };
     let request = tonic::Request::new(req);
 
     let mut client = api_server_connect().await;
@@ -484,8 +490,8 @@ async fn do_delete_ip_from_list(
     list_kind: ListKind,
 ) -> Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
     let ip = ip.to_owned();
-    let token = get_api_test_bot_token().await.to_string();
-    let req = proto::DeleteIpFromListRequest { ip, token };
+    let access_token = get_api_test_bot_token().await.to_string();
+    let req = proto::DeleteIpFromListRequest { ip, access_token };
     let request = tonic::Request::new(req);
 
     let mut client = api_server_connect().await;
@@ -501,10 +507,10 @@ async fn check_list_has_ip(
     ip: String,
 ) -> Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
     let ip = ip.to_owned();
-    let token = get_api_test_bot_token().await.to_string();
+    let access_token = get_api_test_bot_token().await.to_string();
     let mut client = api_server_connect().await;
 
-    let req = proto::IsIpInListRequest { ip, token };
+    let req = proto::IsIpInListRequest { ip, access_token };
     let request = tonic::Request::new(req);
 
     match list_kind {
@@ -518,7 +524,7 @@ async fn do_add_role(
     password: String,
     permissions: Vec<Permission>,
 ) -> Result<tonic::Response<proto::AddRoleResponse>, tonic::Status> {
-    let token = get_api_test_bot_token().await.to_string();
+    let access_token = get_api_test_bot_token().await.to_string();
     let permissions = permissions
         .iter()
         .map(|p| match *p {
@@ -534,7 +540,7 @@ async fn do_add_role(
         password,
         description: generate_string(20),
         permissions,
-        token,
+        access_token,
     };
     let request = tonic::Request::new(req);
 

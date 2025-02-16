@@ -1,6 +1,7 @@
 use clap::Parser;
 use log::info;
 use proto::api_server::{Api, ApiServer};
+use serde::Serialize;
 use server::app::{
     api::{Api as ApiService, ApiError, Credentials},
     config::{get_tokens_signing_key, Config, DbConfig},
@@ -9,7 +10,9 @@ use server::app::{
     roles::permission::Permission,
     roles::role::Role,
 };
+use std::panic;
 use std::{error::Error, path::Path, sync::Arc};
+use structured_logger::Builder;
 use tokio::signal;
 use tonic::transport::Server;
 
@@ -20,7 +23,7 @@ mod proto {
         tonic::include_file_descriptor_set!("api_descriptor");
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize)]
 #[command(version, about, long_about = None)]
 struct Args {
     #[arg(
@@ -28,19 +31,19 @@ struct Args {
         value_name = "ADDR:PORT",
         help = "server ip address with port e.g. 127.0.0.1:50051"
     )]
-    addr: String,
+    pub addr: String,
 
     #[arg(
         long,
         help = "path to file for configuration application server (limits and etc)"
     )]
-    config_path: String,
+    pub config_path: String,
 
     #[arg(
         long,
         help = "metrics exporter ip address with port e.g. 127.0.0.1:50052"
     )]
-    metrics_addr: Option<String>,
+    pub metrics_addr: Option<String>,
 }
 
 fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
@@ -76,7 +79,7 @@ impl Api for ApiService {
     ) -> Result<tonic::Response<proto::AddRoleResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ManageRole)
+        self.check_permission(&input.access_token, Permission::ManageRole)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -115,7 +118,7 @@ impl Api for ApiService {
     ) -> Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ManageIpList)
+        self.check_permission(&input.access_token, Permission::ManageIpList)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -132,7 +135,7 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ManageIpList)
+        self.check_permission(&input.access_token, Permission::ManageIpList)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -149,7 +152,7 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ManageIpList)
+        self.check_permission(&input.access_token, Permission::ManageIpList)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -166,7 +169,7 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ManageIpList)
+        self.check_permission(&input.access_token, Permission::ManageIpList)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -183,7 +186,7 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ViewIpList)
+        self.check_permission(&input.access_token, Permission::ViewIpList)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -201,7 +204,7 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ViewIpList)
+        self.check_permission(&input.access_token, Permission::ViewIpList)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -219,7 +222,7 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ManageIpList)
+        self.check_permission(&input.access_token, Permission::ManageIpList)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -236,7 +239,7 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ManageIpList)
+        self.check_permission(&input.access_token, Permission::ManageIpList)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -253,7 +256,7 @@ impl Api for ApiService {
     ) -> std::result::Result<tonic::Response<proto::ResetRateLimiterResponse>, tonic::Status> {
         let input = request.get_ref();
 
-        self.check_permission(&input.token, Permission::ResetRateLimiter)
+        self.check_permission(&input.access_token, Permission::ResetRateLimiter)
             .await
             .map_err(map_api_to_grpc_error)?;
 
@@ -276,7 +279,7 @@ impl Api for ApiService {
         request: tonic::Request<proto::AuthRequest>,
     ) -> std::result::Result<tonic::Response<proto::AuthResponse>, tonic::Status> {
         let input = request.get_ref();
-        let token = self
+        let (access_token, refresh_token) = self
             .auth(Credentials {
                 login: input.login.clone(),
                 password: input.password.clone(),
@@ -284,25 +287,31 @@ impl Api for ApiService {
             })
             .await
             .map_err(map_api_to_grpc_error)?;
-        Ok(tonic::Response::new(proto::AuthResponse { token }))
+        Ok(tonic::Response::new(proto::AuthResponse {
+            access_token,
+            refresh_token,
+        }))
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    Builder::new().init();
 
     let args = Args::parse();
-    info!("Args: {:?}", args);
+
+    info!(args:serde = args; "cli arguments");
 
     let addr = args.addr.parse().unwrap();
     let path = Path::new(&args.config_path);
 
     let config = Config::parse(path);
-    info!("Config: {:?}", config);
+
+    info!(config:serde = config; "server config");
 
     let db_config = DbConfig::from_env();
-    info!("DbConfig: {:?}", db_config);
+
+    info!(config:serde = db_config; "db config");
 
     let (mut client, connection) = connect(&db_config).await;
 

@@ -62,7 +62,7 @@ pub struct Api {
     roles_storage: Storage,
     token_releaser: TokenReleaser,
     access_token_expiration_time: Duration,
-    _refresh_token_expiration_time: Duration,
+    refresh_token_expiration_time: Duration,
 }
 
 impl Api {
@@ -110,7 +110,7 @@ impl Api {
             access_token_expiration_time: Duration::from_secs(
                 config.timeouts.access_token_expiration_secs,
             ),
-            _refresh_token_expiration_time: Duration::from_secs(
+            refresh_token_expiration_time: Duration::from_secs(
                 config.timeouts.refresh_token_expiration_secs,
             ),
         }
@@ -257,7 +257,25 @@ impl Api {
         Ok(())
     }
 
-    pub async fn auth(&self, credentials: Credentials) -> Result<String> {
+    /// Authenticates the user with the given credentials and returns a pair of access and refresh tokens.
+    ///
+    /// The access token is a JWT that contains the user's login and permissions. It is valid for the duration of
+    /// `access_token_expiration_time` and can be used to access protected endpoints.
+    ///
+    /// The refresh token is a JWT that contains the user's login and is valid for the duration of
+    /// `refresh_token_expiration_time`. It can be used to obtain a new pair of access and refresh tokens using the
+    /// `refresh_tokens` endpoint.
+    ///
+    /// If the credentials are invalid or the user does not exist, an `ApiError::Unauthorized` error is returned.
+    ///
+    /// If the user is not allowed to authenticate (e.g. due to an IP ban), an `ApiError::AuthNotAllowed` error is
+    /// returned.
+    ///
+    /// If an error occurs while retrieving the user's role from the storage, an `ApiError::RolesStorageError` error is
+    /// returned.
+    ///
+    /// If an error occurs while releasing the access token, an `ApiError::AuthTokenReleaseError` error is returned.
+    pub async fn auth(&self, credentials: Credentials) -> Result<(String, String)> {
         let login = credentials.login.clone();
         let password = credentials.password.clone();
 
@@ -266,23 +284,24 @@ impl Api {
             return Err(ApiError::AuthNotAllowed);
         }
 
-        let result = self
+        let role = self
             .roles_storage
             .get(&login, &password)
             .await
-            .map_err(ApiError::RolesStorageError)?;
+            .map_err(ApiError::RolesStorageError)?
+            .ok_or(ApiError::Unauthorized)?;
 
-        match result {
-            Some(role) => {
-                let token = self
-                    .token_releaser
-                    .release_access_token(role, self.access_token_expiration_time)
-                    .map_err(ApiError::AuthTokenReleaseError)?;
+        let access_token = self
+            .token_releaser
+            .release_access_token(role, self.access_token_expiration_time)
+            .map_err(ApiError::AuthTokenReleaseError)?;
 
-                Ok(token)
-            }
-            None => Err(ApiError::Unauthorized),
-        }
+        let refresh_token = self
+            .token_releaser
+            .release_refresh_token(&access_token, self.refresh_token_expiration_time)
+            .map_err(ApiError::AuthTokenReleaseError)?;
+
+        Ok((access_token, refresh_token))
     }
 }
 

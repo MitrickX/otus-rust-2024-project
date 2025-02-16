@@ -34,3 +34,11 @@ grpcui -plaintext '[::1]:50051'
 ```
 
 Для вызова методов понадобится токен зарегестрированной роли. Для получения токена нужно вызвать auth для тестовой бот-учетки, которую можно подглядеть в deploy/docker-compose-tests.yaml
+
+
+Беклог
+* Доделать Refresh API
+* Структурное логивароние, попробовать - https://github.com/slog-rs/slog 
+* Подключить ELK - https://github.com/elkninja/elastic-stack-docker-part-one/tree/main
+* Подключить Kafka для рассылки событий системы
+* REST-API шлюз 

@@ -9,7 +9,8 @@ message AuthRequest {
 }
 
 message AuthResponse {
-    string token = 1;
+    string access_token = 1;
+    string refresh_token = 2;
 }
 
 message AddRoleRequest {
@@ -17,7 +18,7 @@ message AddRoleRequest {
     string description = 2;
     string password = 3;
     repeated Permission permissions = 4;
-    string token = 5;
+    string access_token = 5;
 }
 
 enum Permission {
@@ -31,21 +32,21 @@ message AddRoleResponse {}
 
 message AddIpInListRequest {
     string ip = 1;
-    string token = 2;
+    string access_token = 2;
 }
 
 message AddIpInListResponse {}
 
 message DeleteIpFromListRequest {
     string ip = 1;
-    string token = 2;
+    string access_token = 2;
 }
 
 message DeleteIpFromListResponse {}
 
 message IsIpInListRequest {
     string ip = 1;
-    string token = 2;
+    string access_token = 2;
 }
 
 message IsIpInListResponse {
@@ -53,7 +54,7 @@ message IsIpInListResponse {
 }
 
 message ClearListRequest {
-    string token = 1;
+    string access_token = 1;
 }
 message ClearBucketResponse {}
 
@@ -61,7 +62,7 @@ message ResetRateLimiterRequest {
     optional string ip = 1;
     optional string login = 2;
     optional string password = 3;
-    string token = 4;
+    string access_token = 4;
 }
 
 message ResetRateLimiterResponse {}

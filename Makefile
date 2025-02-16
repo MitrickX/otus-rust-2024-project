@@ -1,4 +1,12 @@
-.PHONY: start stop restart tests
+.PHONY: start stop restart tests ui
+
+help:
+	@echo 'make start - start server' ; \
+	echo 'make stop - stop server' ; \
+	echo 'make restart - restart server' ; \
+	echo 'make tests - run all tests' ; \
+	echo 'make tests-locally - run all tests locally' ; \
+	echo 'make ui - run grpcui'
 
 start:
 	@docker compose -f ./deploy/docker-compose.yaml up --build
@@ -7,6 +15,9 @@ stop:
 	@docker compose -f ./deploy/docker-compose.yaml down
 
 restart: stop start
+
+ui: 
+	grpcui -plaintext '[::1]:50051'
 
 # run all tests (unit, integration, end-to-end) in docker
 tests:
