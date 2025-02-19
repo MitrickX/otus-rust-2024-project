@@ -13,6 +13,16 @@ message AuthResponse {
     string refresh_token = 2;
 }
 
+message RefreshAccessTokenRequest {
+    string access_token = 1;
+    string refresh_token = 2;
+}
+
+message RefreshAccessTokenResponse {
+    string access_token = 1;
+    string refresh_token = 2;
+}
+
 message AddRoleRequest {
     string login = 1;
     string description = 2;
@@ -73,6 +83,7 @@ message HealthCheckResponse {}
 
 service Api {
     rpc Auth(AuthRequest) returns (AuthResponse) {};
+    rpc RefreshAccessToken(RefreshAccessTokenRequest) returns (RefreshAccessTokenResponse) {};
     rpc AddRole(AddRoleRequest) returns (AddRoleResponse) {};
     rpc AddIpInBlackList (AddIpInListRequest) returns (AddIpInListResponse) {};
     rpc AddIpInWhiteList (AddIpInListRequest) returns (AddIpInListResponse) {};

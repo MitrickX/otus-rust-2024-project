@@ -292,6 +292,25 @@ impl Api for ApiService {
             refresh_token,
         }))
     }
+
+    async fn refresh_access_token(
+        &self,
+        request: tonic::Request<proto::RefreshAccessTokenRequest>,
+    ) -> std::result::Result<tonic::Response<proto::RefreshAccessTokenResponse>, tonic::Status>
+    {
+        let input = request.get_ref();
+        let access_token = input.access_token.clone();
+        let refresh_token = input.refresh_token.clone();
+        let (new_access_token, new_refresh_token) = self
+            .refresh_access_token(&access_token, &refresh_token)
+            .await
+            .map_err(map_api_to_grpc_error)?;
+
+        Ok(tonic::Response::new(proto::RefreshAccessTokenResponse {
+            access_token: new_access_token,
+            refresh_token: new_refresh_token,
+        }))
+    }
 }
 
 #[tokio::main]

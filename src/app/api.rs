@@ -303,6 +303,39 @@ impl Api {
 
         Ok((access_token, refresh_token))
     }
+
+    /// Refreshes the access token using the provided refresh token.
+    ///
+    /// This function takes an existing access token and a refresh token to generate a new pair of access
+    /// and refresh tokens. The new access token is valid for the duration defined by
+    /// `access_token_expiration_time`.
+    ///
+    /// If the refresh operation fails, an `ApiError::AuthTokenReleaseError` is returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `access_token` - The current access token to be refreshed.
+    /// * `refresh_token` - The refresh token used to obtain a new access token.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the new access token and refresh token.
+    pub async fn refresh_access_token(
+        &self,
+        access_token: &str,
+        refresh_token: &str,
+    ) -> Result<(String, String)> {
+        let (access_token, refresh_token) = self
+            .token_releaser
+            .refresh_access_token(
+                access_token,
+                refresh_token,
+                self.access_token_expiration_time,
+            )
+            .map_err(ApiError::AuthTokenReleaseError)?;
+
+        Ok((access_token, refresh_token))
+    }
 }
 
 fn clear_inactive_worker(
