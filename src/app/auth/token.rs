@@ -13,6 +13,7 @@ pub enum TokenReleaserError {
     InvalidSignature(hmac::digest::InvalidLength),
     ReleaseFailed(Error),
     TokenExpired,
+    InvalidExpirationTime,
     VerifyFailed(Error),
     InvalidRefreshToken,
 }
@@ -23,6 +24,7 @@ impl std::fmt::Display for TokenReleaserError {
             Self::InvalidSignature(e) => write!(f, "invalid signature: {}", e),
             Self::ReleaseFailed(e) => write!(f, "release failed: {}", e),
             Self::TokenExpired => write!(f, "token expired"),
+            Self::InvalidExpirationTime => write!(f, "invalid expiration time"),
             Self::VerifyFailed(e) => write!(f, "verify failed: {}", e),
             Self::InvalidRefreshToken => write!(f, "invalid refresh token"),
         }
@@ -146,6 +148,12 @@ impl TokenReleaser {
     }
 
     fn verify_token(&self, token: &str) -> Result<BTreeMap<String, String>> {
+        let payload = self.verify_token_without_expiration(token)?;
+        self.check_expiration(&payload)?;
+        Ok(payload)
+    }
+
+    fn verify_token_without_expiration(&self, token: &str) -> Result<BTreeMap<String, String>> {
         let token: Token<Header, BTreeMap<String, String>, _> = token
             .verify_with_key(&self.signing_key)
             .map_err(TokenReleaserError::VerifyFailed)?;
@@ -154,8 +162,6 @@ impl TokenReleaser {
         self.check_header_algo(header)?;
 
         let payload = token.claims();
-        self.check_expiration(payload)?;
-
         Ok(payload.clone())
     }
 
@@ -192,13 +198,13 @@ impl TokenReleaser {
         let expired_at_ts = self
             .get_payload_item(&payload, PAYLOAD_EXPIRED_AT)?
             .parse::<u64>()
-            .map_err(|_| TokenReleaserError::TokenExpired)?;
+            .map_err(|_| TokenReleaserError::InvalidExpirationTime)?;
 
         let refresh_token_expired_at = UNIX_EPOCH
             .checked_add(Duration::from_secs(expired_at_ts))
             .ok_or(TokenReleaserError::TokenExpired)?;
 
-        let payload = self.verify_token(access_token)?;
+        let payload = self.verify_token_without_expiration(access_token)?;
 
         let permissions = self
             .get_permissions(&payload)?
@@ -243,7 +249,7 @@ impl TokenReleaser {
         let expired_at = self.get_payload_item(payload, PAYLOAD_EXPIRED_AT)?;
         let expired_at = expired_at
             .parse::<u64>()
-            .map_err(|_| TokenReleaserError::TokenExpired)?;
+            .map_err(|_| TokenReleaserError::InvalidExpirationTime)?;
 
         if expired_at
             < SystemTime::now()
@@ -415,7 +421,7 @@ mod tests {
             "test_description".to_owned(),
             vec![Permission::ManageRole, Permission::ManageIpList],
         );
-        let access_token_expired_at = SystemTime::now();
+        let access_token_expired_at = SystemTime::now() - Duration::from_secs(2);
         let access_token = releaser
             .release_access_token_expired_at(role, access_token_expired_at)
             .unwrap();

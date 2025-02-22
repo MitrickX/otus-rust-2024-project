@@ -9,7 +9,7 @@ timeouts:
   bucket_active_secs: 180
 
   # how long in seconds access token is valid after creation
-  access_token_expiration_secs: 300
+  access_token_expiration_secs: 300 # 5 minutes
 
   # how long in seconds refresh token is valid after creation
-  refresh_token_expiration_secs: 86400
+  refresh_token_expiration_secs: 86400  # 24 hours
