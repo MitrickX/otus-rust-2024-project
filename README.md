@@ -38,7 +38,7 @@ grpcui -plaintext '[::1]:50051'
 
 Беклог
 * Доделать Refresh API
-* cargo clippy --tests && cargo clippy --all-targets --all && cargo fmt --check 
+* cargo clippy --tests && cargo clippy --all-targets --all && cargo fmt --check
 * Комментарии
 * thiserror
 * В релизере передавать &Role

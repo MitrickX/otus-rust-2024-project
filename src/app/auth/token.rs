@@ -102,7 +102,7 @@ impl TokenReleaser {
     pub fn verify_refresh_token(&self, token: &str) -> Result<String> {
         let payload = self.verify_token(token)?;
 
-        Ok(self.get_payload_item(&payload, PAYLOAD_TOKEN)?)
+        self.get_payload_item(&payload, PAYLOAD_TOKEN)
     }
 
     fn verify_token(&self, token: &str) -> Result<BTreeMap<String, String>> {
@@ -336,7 +336,7 @@ mod tests {
         let releaser = TokenReleaser::new(signing_key).unwrap();
         let access_token = "test_access_token";
         let token = releaser
-            .release_refresh_token(&access_token, Duration::from_secs(60))
+            .release_refresh_token(access_token, Duration::from_secs(60))
             .unwrap();
         let result = releaser.verify_refresh_token(&token);
         assert!(result.is_ok());
@@ -356,7 +356,7 @@ mod tests {
         let access_token = "test_access_token";
         let expired_at = SystemTime::now() - Duration::from_secs(60);
         let token = releaser
-            .release_refresh_token_expired_at(&access_token, expired_at)
+            .release_refresh_token_expired_at(access_token, expired_at)
             .unwrap();
         let result = releaser.verify_access_token(&token);
         assert!(result.is_err());

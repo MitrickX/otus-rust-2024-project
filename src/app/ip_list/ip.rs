@@ -104,42 +104,36 @@ mod tests {
         );
 
         assert!(
-            match Ip::from_str("test") {
-                Err(ParseError::IpAddrParseError(_)) => true,
-                _ => false,
-            },
+            matches!(Ip::from_str("test"), Err(ParseError::IpAddrParseError(_))),
             "Should be IpAddrParseError"
         );
 
         assert!(
-            match Ip::from_str("123") {
-                Err(ParseError::IpAddrParseError(_)) => true,
-                _ => false,
-            },
+            matches!(Ip::from_str("123"), Err(ParseError::IpAddrParseError(_))),
             "Should be IpAddrParseError"
         );
 
         assert!(
-            match Ip::from_str("192.168.56.0/test") {
-                Err(ParseError::CidrParseError(_)) => true,
-                _ => false,
-            },
+            matches!(
+                Ip::from_str("192.168.56.0/test"),
+                Err(ParseError::CidrParseError(_))
+            ),
             "Should be CidrParseError"
         );
 
         assert!(
-            match Ip::from_str("192.168.56.0/100000000") {
-                Err(ParseError::CidrParseError(_)) => true,
-                _ => false,
-            },
+            matches!(
+                Ip::from_str("192.168.56.0/100000000"),
+                Err(ParseError::CidrParseError(_))
+            ),
             "Should be CidrParseError"
         );
 
         assert!(
-            match Ip::from_str("192.168.56.0/") {
-                Err(ParseError::CidrParseError(_)) => true,
-                _ => false,
-            },
+            matches!(
+                Ip::from_str("192.168.56.0/"),
+                Err(ParseError::CidrParseError(_))
+            ),
             "Should be CidrParseError"
         );
     }
@@ -179,26 +173,26 @@ mod tests {
         );
 
         assert!(
-            match Ip::from_str("2001:1111:2222:3333::/test") {
-                Err(ParseError::CidrParseError(_)) => true,
-                _ => false,
-            },
+            matches!(
+                Ip::from_str("2001:1111:2222:3333::/test"),
+                Err(ParseError::CidrParseError(_))
+            ),
             "Should be CidrParseError"
         );
 
         assert!(
-            match Ip::from_str("2001:1111:2222:3333::/123312312312") {
-                Err(ParseError::CidrParseError(_)) => true,
-                _ => false,
-            },
+            matches!(
+                Ip::from_str("2001:1111:2222:3333::/123312312312"),
+                Err(ParseError::CidrParseError(_))
+            ),
             "Should be CidrParseError"
         );
 
         assert!(
-            match Ip::from_str("2001:1111:2222:3333::/") {
-                Err(ParseError::CidrParseError(_)) => true,
-                _ => false,
-            },
+            matches!(
+                Ip::from_str("2001:1111:2222:3333::/"),
+                Err(ParseError::CidrParseError(_))
+            ),
             "Should be CidrParseError"
         );
     }

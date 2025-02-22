@@ -52,7 +52,7 @@ async fn test_ip_list_simple_crud() {
     clear_ip_list(&client, list_kind).await;
 
     let client = Arc::new(client);
-    let list = List::new(Arc::clone(&client), &list_kind);
+    let list = List::new(Arc::clone(&client), list_kind);
     let ip_v4_with_mask = Ip::from_str("192.168.56.0/24").unwrap();
     let ip_v4_without_mask = Ip::from_str("192.168.56.1").unwrap();
     let ip_v6_with_mask = Ip::from_str("2001:1111:2222:3333::/64").unwrap();
@@ -168,7 +168,7 @@ async fn test_conform_ip_v4() {
     clear_ip_list(&client, list_kind).await;
 
     let client = Arc::new(client);
-    let list = List::new(Arc::clone(&client), &list_kind);
+    let list = List::new(Arc::clone(&client), list_kind);
 
     let ip_str = "192.168.56.0/24";
     list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();
@@ -227,7 +227,7 @@ async fn test_conform_ip_v6() {
     clear_ip_list(&client, list_kind).await;
 
     let client = Arc::new(client);
-    let list = List::new(Arc::clone(&client), &list_kind);
+    let list = List::new(Arc::clone(&client), list_kind);
 
     let ip_str = "2001:1111:2222:3333::/64";
     list.add(&Ip::from_str(ip_str).unwrap()).await.unwrap();

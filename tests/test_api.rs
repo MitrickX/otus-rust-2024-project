@@ -331,7 +331,7 @@ async fn add_role(w: &mut World, val: String) {
     let password = generate_string(8);
 
     let permissions: Vec<Permission> = val
-        .split(",")
+        .split(',')
         .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty())
         .flat_map(|s| Permission::from_str(&s))
@@ -450,7 +450,7 @@ async fn token_has_not_permissions(w: &mut World, val: String) {
     }
 
     let expected_permissions: Vec<String> = val
-        .split(",")
+        .split(',')
         .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty())
         .collect();
