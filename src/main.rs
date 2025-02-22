@@ -73,6 +73,28 @@ fn map_api_to_grpc_error(err: ApiError) -> tonic::Status {
 
 #[tonic::async_trait]
 impl Api for ApiService {
+    /// Handles the addition of a new role to the system.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::AddRoleRequest`, which includes
+    ///   the details of the role to be added, such as login, password, description,
+    ///   permissions, and access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::AddRoleResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with an `AddRoleResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ManageRole` permission, an error is returned.
+    /// - If there is an error adding the role to the storage, an error is returned.
+    ///
+    /// The permissions for the role are parsed from the `permissions` field in the request,
+    /// and only valid permissions are included in the role being added.
     async fn add_role(
         &self,
         request: tonic::Request<proto::AddRoleRequest>,
@@ -112,6 +134,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(response))
     }
 
+    /// Adds the given IP address to the black list.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::AddIpInListRequest`, which includes
+    ///   the IP address to be added and an access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with an `AddIpInListResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ManageIpList` permission, an error is returned.
+    /// - If there is an error adding the IP address to the storage, an error is returned.
     async fn add_ip_in_black_list(
         &self,
         request: tonic::Request<proto::AddIpInListRequest>,
@@ -129,6 +169,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::AddIpInListResponse {}))
     }
 
+    /// Adds the given IP address to the white list.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::AddIpInListRequest`, which includes
+    ///   the IP address to be added and an access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::AddIpInListResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with an `AddIpInListResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ManageIpList` permission, an error is returned.
+    /// - If there is an error adding the IP address to the storage, an error is returned.
     async fn add_ip_in_white_list(
         &self,
         request: tonic::Request<proto::AddIpInListRequest>,
@@ -146,6 +204,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::AddIpInListResponse {}))
     }
 
+    /// Removes the given IP address from the black list.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::DeleteIpFromListRequest`, which includes
+    ///   the IP address to be removed and an access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with a `DeleteIpFromListResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ManageIpList` permission, an error is returned.
+    /// - If there is an error removing the IP address from the storage, an error is returned.
     async fn delete_ip_from_black_list(
         &self,
         request: tonic::Request<proto::DeleteIpFromListRequest>,
@@ -163,6 +239,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::DeleteIpFromListResponse {}))
     }
 
+    /// Removes the given IP address from the white list.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::DeleteIpFromListRequest`, which includes
+    ///   the IP address to be removed and an access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::DeleteIpFromListResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with a `DeleteIpFromListResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ManageIpList` permission, an error is returned.
+    /// - If there is an error removing the IP address from the storage, an error is returned.
     async fn delete_ip_from_white_list(
         &self,
         request: tonic::Request<proto::DeleteIpFromListRequest>,
@@ -180,6 +274,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::DeleteIpFromListResponse {}))
     }
 
+    /// Checks if the given IP address is in the black list.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::IsIpInListRequest`, which includes
+    ///   the IP address to be checked and an access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with an `IsIpInListResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ViewIpList` permission, an error is returned.
+    /// - If there is an error checking the IP address in the storage, an error is returned.
     async fn is_ip_in_black_list(
         &self,
         request: tonic::Request<proto::IsIpInListRequest>,
@@ -198,6 +310,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::IsIpInListResponse { ok }))
     }
 
+    /// Checks if the given IP address is in the white list.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::IsIpInListRequest`, which includes
+    ///   the IP address to be checked and an access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::IsIpInListResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with an `IsIpInListResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ViewIpList` permission, an error is returned.
+    /// - If there is an error checking the IP address in the storage, an error is returned.
     async fn is_ip_in_white_list(
         &self,
         request: tonic::Request<proto::IsIpInListRequest>,
@@ -216,6 +346,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::IsIpInListResponse { ok }))
     }
 
+    /// Clears the black list of all IP addresses.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::ClearListRequest`, which includes
+    ///   an access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with an empty `ClearBucketResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ManageIpList` permission, an error is returned.
+    /// - If there is an error clearing the black list in the storage, an error is returned.
     async fn clear_black_list(
         &self,
         request: tonic::Request<proto::ClearListRequest>,
@@ -233,6 +381,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::ClearBucketResponse {}))
     }
 
+    /// Clears the white list of all IP addresses.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::ClearListRequest`, which includes
+    ///   an access token.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::ClearBucketResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with an empty `ClearBucketResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ManageIpList` permission, an error is returned.
+    /// - If there is an error clearing the white list in the storage, an error is returned.
     async fn clear_white_list(
         &self,
         request: tonic::Request<proto::ClearListRequest>,
@@ -250,6 +416,24 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::ClearBucketResponse {}))
     }
 
+    /// Resets the rate limiter for the given IP address, if present.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::ResetRateLimiterRequest`, which includes
+    ///   an access token and an optional IP address.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::ResetRateLimiterResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with an empty `ResetRateLimiterResponse` on success, or a `tonic::Status`
+    ///   error if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the access token does not have the `ResetRateLimiter` permission, an error is returned.
+    /// - If there is an error resetting the rate limiter in the storage, an error is returned.
     async fn reset_rate_limiter(
         &self,
         request: tonic::Request<proto::ResetRateLimiterRequest>,
@@ -267,6 +451,16 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::ResetRateLimiterResponse {}))
     }
 
+    /// A simple health check function that always returns a successful response.
+    ///
+    /// # Arguments
+    ///
+    /// * `_request` - A `tonic::Request` containing a `proto::HealthCheckRequest`.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::HealthCheckResponse>, tonic::Status>` - Always returns a
+    ///   successful `tonic::Response` with an empty `HealthCheckResponse`.
     async fn health_check(
         &self,
         _request: tonic::Request<proto::HealthCheckRequest>,
@@ -274,6 +468,25 @@ impl Api for ApiService {
         Ok(tonic::Response::new(proto::HealthCheckResponse {}))
     }
 
+    /// Authenticates a user with the given credentials and returns a pair of access and refresh tokens.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::AuthRequest`, which includes the user's
+    ///   login credentials and IP address.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::AuthResponse>, tonic::Status>` - Returns a `tonic::Response` with
+    ///   an `AuthResponse` containing the access and refresh tokens on success, or a `tonic::Status` error
+    ///   if the operation fails due to permission issues or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the credentials are invalid or the user does not exist, an error is returned.
+    /// - If the user is not allowed to authenticate (e.g. due to an IP ban), an error is returned.
+    /// - If an error occurs while retrieving the user's role from the storage, an error is returned.
     async fn auth(
         &self,
         request: tonic::Request<proto::AuthRequest>,
@@ -293,6 +506,25 @@ impl Api for ApiService {
         }))
     }
 
+    /// Refreshes the access token using the provided refresh token.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A `tonic::Request` containing a `proto::RefreshAccessTokenRequest`, which includes
+    ///   the current access token and refresh token to be refreshed.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<tonic::Response<proto::RefreshAccessTokenResponse>, tonic::Status>` - Returns a
+    ///   `tonic::Response` with a `RefreshAccessTokenResponse` containing the new access and refresh
+    ///   tokens on success, or a `tonic::Status` error if the operation fails due to permission issues
+    ///   or storage errors.
+    ///
+    /// # Errors
+    ///
+    /// This function returns a `tonic::Status` error in the following cases:
+    /// - If the refresh operation fails, an error is returned.
+    /// - If an error occurs while releasing the access token, an error is returned.
     async fn refresh_access_token(
         &self,
         request: tonic::Request<proto::RefreshAccessTokenRequest>,

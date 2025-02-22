@@ -36,6 +36,17 @@ impl<K: PartialEq + Eq + Hash + Clone + Debug> RateLimit<K> {
         self.is_conformed_to_time(key, current_time)
     }
 
+    /// Checks if the operation associated with the given key is allowed at the specified time.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key associated with the operation to check.
+    /// * `current_time` - The time at which to check if the operation is allowed.
+    ///
+    /// # Returns
+    ///
+    /// * `true` if the operation is allowed (i.e., conforms to the rate limit).
+    /// * `false` if the operation is not allowed.
     fn is_conformed_to_time(&mut self, key: K, current_time: SystemTime) -> bool {
         let bucket = self
             .buckets
@@ -62,6 +73,15 @@ impl<K: PartialEq + Eq + Hash + Clone + Debug> RateLimit<K> {
         self.clear_inactive_to_time(current_time)
     }
 
+    /// Clear not active buckets from storage
+    ///
+    /// # Arguments
+    ///
+    /// * `current_time` - The time at which to check if the bucket is active.
+    ///
+    /// # Returns
+    ///
+    /// The count of deleted buckets.
     fn clear_inactive_to_time(&mut self, current_time: SystemTime) -> usize {
         let remove_keys: Vec<K> = self
             .buckets

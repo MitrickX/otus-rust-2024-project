@@ -10,10 +10,32 @@ pub struct Storage {
 }
 
 impl Storage {
+    /// Creates a new `Storage` instance with the provided database client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - An `Arc` wrapped `tokio_postgres::Client` used to interact with the database.
+    ///
+    /// # Returns
+    ///
+    /// A new `Storage` instance.
     pub fn new(client: Client) -> Self {
         Self { client }
     }
 
+    /// Adds a new role to the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `role` - The role to be added.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the role is successfully added, otherwise an error is returned.
+    ///
+    /// # Errors
+    ///
+    /// If an error occurs while executing the database query, an error is returned.
     pub async fn add(&self, role: &Role) -> Result<()> {
         Arc::clone(&self.client)
             .execute(
@@ -36,6 +58,20 @@ SET
         Ok(())
     }
 
+    /// Retrieves a role from the database, given the login and password.
+    ///
+    /// # Arguments
+    ///
+    /// * `login` - The login of the role to be retrieved.
+    /// * `password` - The password of the role to be retrieved.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Some(role))` if the role exists and the password is correct, `Ok(None)` otherwise.
+    ///
+    /// # Errors
+    ///
+    /// If an error occurs while executing the database query, an error is returned.
     pub async fn get(&self, login: &str, password: &str) -> Result<Option<Role>> {
         let rows = Arc::clone(&self.client)
             .query(

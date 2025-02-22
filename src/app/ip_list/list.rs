@@ -11,6 +11,22 @@ pub struct List {
 }
 
 impl List {
+    /// Create a new `List` instance.
+    ///
+    /// This function will create a new `List` instance with the given database client and kind.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - The database client to use for querying the `ip_list` table.
+    /// * `kind` - The kind of list to create, one of "white" or "black".
+    ///
+    /// # Returns
+    ///
+    /// A new `List` instance.
+    ///
+    /// # Errors
+    ///
+    /// This function does not return an error.
     pub fn new(client: Client, kind: &str) -> Self {
         Self {
             client,
@@ -18,6 +34,17 @@ impl List {
         }
     }
 
+    /// Returns true if the given IP address is in the list, false otherwise.
+    ///
+    /// This function will return false if there is an error querying the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to search for in the list.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if there is an error querying the database.
     pub async fn has(&self, ip: &Ip) -> Result<bool> {
         let row = match ip.network_length() {
             Some(network_length) => {
@@ -51,6 +78,19 @@ SELECT EXISTS(
         Ok(result)
     }
 
+    /// Adds the given IP address to the list.
+    ///
+    /// This function will return `Ok(())` if the IP address is successfully added
+    /// to the list. In case of an error during the addition process,
+    /// an appropriate `ApiError` is returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be added to the list.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if there is an error querying the database.
     pub async fn add(&self, ip: &Ip) -> Result<()> {
         Arc::clone(&self.client)
             .execute(
@@ -72,6 +112,13 @@ SELECT EXISTS(
         Ok(())
     }
 
+    /// Clears all records from the given list.
+    ///
+    /// This function will delete all records from the given list.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if there is an error querying the database.
     pub async fn clear(&self) -> Result<()> {
         Arc::clone(&self.client)
             .execute("DELETE FROM ip_list WHERE kind = $1", &[&self.kind.clone()])
@@ -80,6 +127,19 @@ SELECT EXISTS(
         Ok(())
     }
 
+    /// Removes the given IP address from the list.
+    ///
+    /// This function will return `Ok(())` if the IP address is successfully removed
+    /// from the list. In case of an error during the removal process,
+    /// an appropriate `ApiError` is returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be removed from the list.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if there is an error querying the database.
     pub async fn delete(&self, ip: &Ip) -> Result<()> {
         match ip.network_length() {
             Some(network_length) => {
@@ -107,6 +167,17 @@ WHERE kind = $1 AND ip = $2"#,
         Ok(())
     }
 
+    /// Returns true if the given IP address is in the list, false otherwise.
+    ///
+    /// This function will return false if there is an error querying the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to search for in the list.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if there is an error querying the database.
     pub async fn is_conform(&self, ip: &Ip) -> Result<bool> {
         let row = Arc::clone(&self.client)
             .query_one(

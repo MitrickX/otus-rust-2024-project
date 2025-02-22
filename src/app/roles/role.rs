@@ -10,6 +10,11 @@ pub struct Role {
 }
 
 impl Role {
+    /// Creates a new `Role` from a login, password, description, and permissions.
+
+    /// The `password` argument is used to generate a hash, which is stored in the
+    /// `password_hash` field of the returned `Role`. The `password` argument is not
+    /// stored in plaintext anywhere.
     pub fn new(
         login: String,
         password: String,
@@ -24,6 +29,15 @@ impl Role {
         }
     }
 
+    /// Verifies that the given password matches the one stored in this role.
+    ///
+    /// # Arguments
+    ///
+    /// * `password` - The password to be verified.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the password matches, `false` otherwise.
     pub(super) fn is_password_verified(&self, password: &str) -> bool {
         verify_password(password, &self.password_hash).is_ok()
     }

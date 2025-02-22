@@ -43,6 +43,13 @@ pub struct TokenReleaser {
 type Result<T> = std::result::Result<T, TokenReleaserError>;
 
 impl TokenReleaser {
+    /// Creates a new `TokenReleaser` from a secret key.
+    ///
+    /// `signing_key` must be a secret key that is at least 32 bytes long.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the key is too short.
     pub fn new(signing_key: String) -> Result<Self> {
         Ok(Self {
             signing_key: Hmac::new_from_slice(signing_key.as_bytes())
@@ -50,6 +57,14 @@ impl TokenReleaser {
         })
     }
 
+    /// Releases a new access token for the given `role` that is valid for the given `expiration_time`.
+    ///
+    /// The `expiration_time` is a duration since the current moment, and the returned token will be valid until the
+    /// current moment plus the given duration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the token could not be released.
     pub fn release_access_token(&self, role: Role, expiration_time: Duration) -> Result<String> {
         self.release_access_token_expired_at(role, SystemTime::now() + expiration_time)
     }
@@ -74,6 +89,16 @@ impl TokenReleaser {
         )
     }
 
+    /// Verifies the given access token and returns the permissions it contains.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - The access token to be verified.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<Vec<Permission>>` containing the set of permissions associated with the token.
+    /// If the token is invalid or cannot be verified, a `TokenReleaserError` is returned.
     pub fn verify_access_token(&self, token: &str) -> Result<Vec<Permission>> {
         let payload = self.verify_token(token)?;
 
@@ -88,6 +113,11 @@ impl TokenReleaser {
         self.release_refresh_token_expired_at(access_token, SystemTime::now() + expiration_time)
     }
 
+    /// Releases a new refresh token for the given `access_token` that is valid until the given `expired_at` time.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the token could not be released.
     fn release_refresh_token_expired_at(
         &self,
         access_token: &str,
@@ -99,6 +129,16 @@ impl TokenReleaser {
         )
     }
 
+    /// Verifies the given refresh token and returns the access token associated with it.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - The refresh token to be verified.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<String>` containing the access token associated with the refresh token.
+    /// If the token is invalid or cannot be verified, a `TokenReleaserError` is returned.
     pub fn verify_refresh_token(&self, token: &str) -> Result<String> {
         let payload = self.verify_token(token)?;
 

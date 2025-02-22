@@ -38,11 +38,9 @@ grpcui -plaintext '[::1]:50051'
 
 Беклог
 * Доделать Refresh API
-* cargo clippy --tests && cargo clippy --all-targets --all && cargo fmt --check
-* Комментарии
-* thiserror
 * В релизере передавать &Role
 * Структурное логивароние, попробовать - https://github.com/slog-rs/slog 
 * Подключить ELK - https://github.com/elkninja/elastic-stack-docker-part-one/tree/main
 * Подключить Kafka для рассылки событий системы
 * REST-API шлюз 
+* thiserror

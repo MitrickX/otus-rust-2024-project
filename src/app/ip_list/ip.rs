@@ -58,14 +58,21 @@ impl Ip {
         }
     }
 
+    /// Network length of the network in bits.
+    ///
+    /// This is the number of leading bits set to 1 in the network mask.
+    /// For example, for a network `192.168.1.0/24`, the network length is 24.
+    /// If the `Ip` represents a single host, this method returns None.
     pub fn network_length(&self) -> Option<u8> {
         self.cidr.as_ref().map(|cidr| cidr.network_length())
     }
 
+    /// Return the IP address as a string.
     pub fn addr(&self) -> String {
         self.addr.to_string()
     }
 
+    /// Return the IP address as a `BitVec` of its octets.
     pub fn octets(&self) -> BitVec {
         get_octets(&self.addr)
     }

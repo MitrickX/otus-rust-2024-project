@@ -66,6 +66,18 @@ pub struct Api {
 }
 
 impl Api {
+    /// Create new `Api` instance
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - `Config` instance
+    /// * `client` - `Client` instance
+    /// * `tokens_signing_key` - signing key for tokens
+    /// * `need_expose_metrics` - whether to expose metrics or not
+    ///
+    /// # Returns
+    ///
+    /// * `Api` instance
     pub fn new(
         config: &Config,
         client: Client,
@@ -116,6 +128,17 @@ impl Api {
         }
     }
 
+    /// Adds a role to the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `role` - A reference to the `Role` object to be added.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Returns `Ok(())` if the role is successfully added,
+    ///   otherwise returns an `ApiError::RolesStorageError` if an error occurs
+    ///   during the storage operation.
     pub async fn add_role_to_storage(&self, role: &Role) -> Result<()> {
         self.roles_storage
             .add(role)
@@ -125,6 +148,22 @@ impl Api {
         Ok(())
     }
 
+    /// Checks if the provided credentials are allowed to authenticate in light of antibruteforce rules
+    ///
+    /// This function verifies that the IP address, password, and login associated
+    /// with the credentials conform to predefined antibruteforce rules. It returns `true` if all
+    /// checks pass, indicating that the credentials are valid for authentication right now.
+    ///
+    /// # Arguments
+    ///
+    /// * `credentials` - A `Credentials` instance containing the IP, login, and password
+    ///   to be checked.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<bool>` - Returns `Ok(true)` if the IP, password, and login conform
+    ///   to the rules, otherwise returns `Ok(false)`. In case of an error during
+    ///   the verification process, an appropriate `ApiError` is returned.
     pub async fn check_can_auth(&self, credentials: Credentials) -> Result<bool> {
         let is_ip_conformed = self.is_ip_conformed(credentials.ip).await?;
 
@@ -133,10 +172,30 @@ impl Api {
             && self.is_login_conformed(credentials.login).await)
     }
 
+    /// Resets the antibruteforce rate limiter for the given IP address.
+    ///
+    /// This function is used to reset the rate limiter for the given IP address.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address for which the rate limiter should be reset.
+    ///
+    /// # Returns
+    ///
+    /// * `()`
     pub async fn reset_ip_rate_limiter(&self, ip: String) {
         Arc::clone(&self.rate_limit_ip).lock().await.reset(ip);
     }
 
+    /// Checks if login is conformed the antibruteforce rule
+    ///
+    /// # Arguments
+    ///
+    /// * `login` - login to check
+    ///
+    /// # Returns
+    ///
+    /// * `bool` - true if login is conformed, false otherwise
     async fn is_login_conformed(&self, login: String) -> bool {
         Arc::clone(&self.rate_limit_login)
             .lock()
@@ -144,6 +203,15 @@ impl Api {
             .is_conformed(login)
     }
 
+    /// Checks if password is conformed the antibruteforce rule
+    ///
+    /// # Arguments
+    ///
+    /// * `password` - password to check
+    ///
+    /// # Returns
+    ///
+    /// * `bool` - true if password is conformed, false otherwise
     async fn is_password_conformed(&self, password: String) -> bool {
         Arc::clone(&self.rate_limit_password)
             .lock()
@@ -151,6 +219,22 @@ impl Api {
             .is_conformed(password)
     }
 
+    /// Checks if IP address is conformed to the antibruteforce rules.
+    ///
+    /// First, it checks if the IP is in the black list. If it is, no auth is allowed.
+    /// Then, it checks if the IP is in the white list. If it is, auth is allowed.
+    /// Finally, if the IP is not in the black nor white list, it checks if the IP
+    /// conforms the antibruteforce rules using the rate limiter.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be checked.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<bool>` - Returns `Ok(true)` if the IP is conformed, otherwise returns
+    ///   `Ok(false)`. In case of an error during the verification process, an
+    ///   appropriate `ApiError` is returned.
     async fn is_ip_conformed(&self, ip: String) -> Result<bool> {
         let ip_addr = Ip::from_str(&ip).map_err(ApiError::IpParseError)?;
 
@@ -182,6 +266,17 @@ impl Api {
             .is_conformed(ip))
     }
 
+    /// Adds the given IP address to the white list.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be added to the white list.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Returns `Ok(())` if the IP address is successfully added
+    ///   to the white list. In case of an error during the addition process,
+    ///   an appropriate `ApiError` is returned.
     pub async fn add_ip_in_white_list(&self, ip: String) -> Result<()> {
         let ip_addr = Ip::from_str(&ip).map_err(ApiError::IpParseError)?;
         self.white_ip_list
@@ -190,6 +285,17 @@ impl Api {
             .map_err(ApiError::IpListError)
     }
 
+    /// Adds the given IP address to the black list.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be added to the black list.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Returns `Ok(())` if the IP address is successfully added
+    ///   to the black list. In case of an error during the addition process,
+    ///   an appropriate `ApiError` is returned.
     pub async fn add_ip_in_black_list(&self, ip: String) -> Result<()> {
         let ip_addr = Ip::from_str(&ip).map_err(ApiError::IpParseError)?;
         self.black_ip_list
@@ -198,6 +304,17 @@ impl Api {
             .map_err(ApiError::IpListError)
     }
 
+    /// Removes the given IP address from the white list.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be removed from the white list.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Returns `Ok(())` if the IP address is successfully removed
+    ///   from the white list. In case of an error during the removal process,
+    ///   an appropriate `ApiError` is returned.
     pub async fn delete_ip_from_white_list(&self, ip: String) -> Result<()> {
         let ip_addr = Ip::from_str(&ip).map_err(ApiError::IpParseError)?;
         self.white_ip_list
@@ -206,6 +323,17 @@ impl Api {
             .map_err(ApiError::IpListError)
     }
 
+    /// Removes the given IP address from the black list.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be removed from the black list.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Returns `Ok(())` if the IP address is successfully removed
+    ///   from the black list. In case of an error during the removal process,
+    ///   an appropriate `ApiError` is returned.
     pub async fn delete_ip_from_black_list(&self, ip: String) -> Result<()> {
         let ip_addr = Ip::from_str(&ip).map_err(ApiError::IpParseError)?;
         self.black_ip_list
@@ -214,6 +342,17 @@ impl Api {
             .map_err(ApiError::IpListError)
     }
 
+    /// Checks whether the given IP address is in the white list or not.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be checked.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<bool>` - Returns `Ok(true)` if the IP address is in the white list,
+    ///   `Ok(false)` otherwise. In case of an error during the check process,
+    ///   an appropriate `ApiError` is returned.
     pub async fn is_ip_in_white_list(&self, ip: String) -> Result<bool> {
         let ip_addr = Ip::from_str(&ip).map_err(ApiError::IpParseError)?;
         self.white_ip_list
@@ -222,6 +361,17 @@ impl Api {
             .map_err(ApiError::IpListError)
     }
 
+    /// Checks whether the given IP address is in the black list or not.
+    ///
+    /// # Arguments
+    ///
+    /// * `ip` - The IP address to be checked.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<bool>` - Returns `Ok(true)` if the IP address is in the black list,
+    ///   `Ok(false)` otherwise. In case of an error during the check process,
+    ///   an appropriate `ApiError` is returned.
     pub async fn is_ip_in_black_list(&self, ip: String) -> Result<bool> {
         let ip_addr = Ip::from_str(&ip).map_err(ApiError::IpParseError)?;
         self.black_ip_list
@@ -230,6 +380,12 @@ impl Api {
             .map_err(ApiError::IpListError)
     }
 
+    /// Clears the black list of all IP addresses.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Returns `Ok(())` if the black list is successfully cleared.
+    ///   In case of an error during the clearing process, an appropriate `ApiError` is returned.
     pub async fn clear_black_list(&self) -> Result<()> {
         self.black_ip_list
             .clear()
@@ -237,6 +393,12 @@ impl Api {
             .map_err(ApiError::IpListError)
     }
 
+    /// Clears the white list of all IP addresses.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Returns `Ok(())` if the white list is successfully cleared.
+    ///   In case of an error during the clearing process, an appropriate `ApiError` is returned.
     pub async fn clear_white_list(&self) -> Result<()> {
         self.white_ip_list
             .clear()
@@ -244,6 +406,18 @@ impl Api {
             .map_err(ApiError::IpListError)
     }
 
+    /// Checks whether the given access token has the given permission.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - The access token to be checked.
+    /// * `permission` - The permission to be checked.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<()>` - Returns `Ok(())` if the token has the given permission,
+    ///   `Err(ApiError::PermissionDenied)` otherwise. In case of an error during the verification process,
+    ///   an appropriate `ApiError` is returned.
     pub async fn check_permission(&self, token: &str, permission: Permission) -> Result<()> {
         let token_permissions = self
             .token_releaser

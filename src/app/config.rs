@@ -41,6 +41,19 @@ pub struct DbConfig {
 }
 
 impl DbConfig {
+    /// Create a new `DbConfig` from environment variables.
+    ///
+    /// The variables are:
+    ///
+    /// - `DB_HOST`: the database host, defaults to `"127.0.0.1"`
+    /// - `DB_PORT`: the database port, defaults to `"5432"`
+    /// - `DB_USER`: the database username, defaults to `"postgres"`
+    /// - `DB_PASSWORD`: the database password, defaults to `"postgres"`
+    /// - `DB_NAME`: the database name, defaults to `"postgres"`
+    /// - `DB_CONNECTION_RETRIES`: number of times to retry connecting to
+    ///   the database if it fails, defaults to `"0"`
+    /// - `DB_CONNECTION_TIMEOUT`: time in seconds to wait between retries,
+    ///   defaults to `"10"`
     pub fn from_env() -> Self {
         Self {
             host: env::var("DB_HOST").unwrap_or("127.0.0.1".to_owned()),
@@ -63,6 +76,11 @@ impl DbConfig {
     }
 }
 
+/// Returns the key used to sign tokens.
+///
+/// This key is expected to be set as an environment variable
+/// named `TOKENS_SIGNING_KEY`. If the variable is not set,
+/// this function will panic.
 pub fn get_tokens_signing_key() -> String {
     env::var("TOKENS_SIGNING_KEY").expect("TOKENS_SIGNING_KEY must be set")
 }
