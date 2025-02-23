@@ -67,24 +67,20 @@ impl TokenReleaser {
     /// # Errors
     ///
     /// Returns an error if the token could not be released.
-    pub fn release_access_token(&self, role: Role, expiration_time: Duration) -> Result<String> {
+    pub fn release_access_token(&self, role: &Role, expiration_time: Duration) -> Result<String> {
         self.release_access_token_expired_at(role, SystemTime::now() + expiration_time)
     }
 
     fn release_access_token_expired_at(
         &self,
-        role: Role,
+        role: &Role,
         expired_at: SystemTime,
     ) -> Result<String> {
-        let permissions: Vec<String> = role
-            .permissions
-            .into_iter()
-            .map(|p| p.to_string())
-            .collect();
+        let permissions: Vec<String> = role.permissions.iter().map(|p| p.to_string()).collect();
 
         self.release_token(
             BTreeMap::from([
-                (PAYLOAD_LOGIN.to_owned(), role.login),
+                (PAYLOAD_LOGIN.to_owned(), role.login.clone()),
                 (PAYLOAD_PERMISSIONS.to_owned(), permissions.join(",")),
             ]),
             expired_at,
@@ -314,7 +310,7 @@ mod tests {
             "test_description".to_owned(),
             vec![Permission::ManageRole, Permission::ManageIpList],
         );
-        let result = releaser.release_access_token(role, Duration::from_secs(60));
+        let result = releaser.release_access_token(&role, Duration::from_secs(60));
         assert!(result.is_ok());
     }
 
@@ -329,7 +325,7 @@ mod tests {
             vec![Permission::ManageRole, Permission::ManageIpList],
         );
         let token = releaser
-            .release_access_token(role, Duration::from_secs(60))
+            .release_access_token(&role, Duration::from_secs(60))
             .unwrap();
         let result = releaser.verify_access_token(&token);
         assert!(result.is_ok());
@@ -358,7 +354,7 @@ mod tests {
         );
         let expired_at = SystemTime::now() - Duration::from_secs(60);
         let token = releaser
-            .release_access_token_expired_at(role, expired_at)
+            .release_access_token_expired_at(&role, expired_at)
             .unwrap();
         let result = releaser.verify_access_token(&token);
         assert!(result.is_err());
@@ -423,7 +419,7 @@ mod tests {
         );
         let access_token_expired_at = SystemTime::now() - Duration::from_secs(2);
         let access_token = releaser
-            .release_access_token_expired_at(role, access_token_expired_at)
+            .release_access_token_expired_at(&role, access_token_expired_at)
             .unwrap();
 
         let refresh_token_expired_at = SystemTime::now() + Duration::from_secs(60);
@@ -481,7 +477,7 @@ mod tests {
         );
         let access_token_expired_at = SystemTime::now();
         let access_token = releaser
-            .release_access_token_expired_at(role, access_token_expired_at)
+            .release_access_token_expired_at(&role, access_token_expired_at)
             .unwrap();
 
         let refresh_token_expired_at = SystemTime::now() + Duration::from_secs(60);
@@ -498,7 +494,7 @@ mod tests {
         );
         let access_token_expired_at = SystemTime::now() + Duration::from_secs(60);
         let access_token = releaser
-            .release_access_token_expired_at(role, access_token_expired_at)
+            .release_access_token_expired_at(&role, access_token_expired_at)
             .unwrap();
 
         let new_access_token_expired_at = SystemTime::now() + Duration::from_secs(60);

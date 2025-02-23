@@ -467,7 +467,7 @@ impl Api {
 
         let access_token = self
             .token_releaser
-            .release_access_token(role, self.access_token_expiration_time)
+            .release_access_token(&role, self.access_token_expiration_time)
             .map_err(ApiError::AuthTokenReleaseError)?;
 
         let refresh_token = self
